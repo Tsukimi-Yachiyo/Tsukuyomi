@@ -1,0 +1,10 @@
+/* 全局 CSS 自定义属性定义 */
+:root {
+  /* 默认主题颜色 */
+  --theme-color: #4df0ff;
+  --theme-color-glow: rgba(77, 240, 255, 0.6);
+  --theme-color-rgb: 77, 240, 255;
+  /* 边框动画 */
+  --line-del: 0.3s;
+  --line-dur: 1s;
+}

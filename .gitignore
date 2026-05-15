@@ -1,0 +1,55 @@
+
+# ====================================
+# 通用忽略规则
+# ====================================
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 编辑器和IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ====================================
+# Cocos Creator 项目
+# ====================================
+cocos/library/
+cocos/temp/
+cocos/local/
+cocos/build/
+cocos/profiles/
+cocos/native/
+cocos/node_modules/
+
+# ====================================
+# Vue/前端项目
+# ====================================
+vue/node_modules/
+vue/dist/
+vue/dist-ssr/
+vue/coverage/
+vue/public/
+vue/.trae/
+vue/.vscode/
+vue/*.local
+vue/*.tsbuildinfo
+vue/.eslintcache
+vue/__screenshots__/
+vue/cypress/videos/
+vue/cypress/screenshots/
+vue/*.timestamp-*-*.mjs
+
