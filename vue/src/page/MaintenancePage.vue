@@ -8,7 +8,7 @@
       </div>
       <h1 class="text-4xl font-bold mb-4">系统维护中</h1>
       <p class="text-lg text-gray-400 mb-10">后端服务暂时不可用，请稍后再试。</p>
-      <button 
+      <button
         class="px-16 py-5 text-base w-20 font-semibold rounded-lg cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 bg-linear-to-br from-[#e94560] to-[#c73659]"
         @click="retryCheck"
       >
@@ -19,11 +19,11 @@
 </template>
 
 <script setup lang="ts">
-const emit = defineEmits<{
-  (e: 'retry'): void;
-}>();
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const retryCheck = () => {
-  emit('retry');
+  router.push('/');
 };
 </script>

@@ -1,10 +1,16 @@
 <template>
-  <div id="splash-screen" :class="{ hidden: isHidden }">
-    <img id="splash-image" src="/loginani.png" alt="月读空间">
-    <div id="progress-container">
-      <div id="progress-bar" :style="{ width: progress + '%' }"></div>
+  <div
+    class="fixed inset-0 w-screen h-screen flex flex-col items-center justify-center z-9999 bg-linear-to-br from-[#0a0a0f] via-[#1a1a2e] to-[#0a0a0f] transition-[opacity,visibility] duration-800 ease-out"
+    :class="{ 'opacity-0 invisible': isHidden }"
+  >
+    <img src="/loginani.png" alt="月读空间" class="max-w-[60vw] max-h-[60vh] object-contain animate-[splash-float_3s_ease-in-out_infinite]">
+    <div class="w-[200px] h-1 bg-white/10 rounded-sm mt-10 overflow-hidden">
+      <div
+        class="h-full bg-linear-to-r from-purple-500 via-indigo-500 to-cyan-500 bg-[length:200%_100%] animate-[splash-gradient_2s_linear_infinite] transition-[width] duration-300 ease-out"
+        :style="{ width: progress + '%' }"
+      ></div>
     </div>
-    <div id="loading-text">{{ loadingText }}</div>
+    <div class="mt-5 font-sans text-sm text-white/60 tracking-[2px]">{{ loadingText }}</div>
   </div>
 </template>
 
@@ -40,68 +46,3 @@ watch(() => props.isHidden, (hidden) => {
   }
 }, { immediate: true });
 </script>
-
-<style scoped>
-#splash-screen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  transition: opacity 0.8s ease-out, visibility 0.8s ease-out;
-}
-
-#splash-screen.hidden {
-  opacity: 0;
-  visibility: hidden;
-}
-
-#splash-image {
-  max-width: 60vw;
-  max-height: 60vh;
-  object-fit: contain;
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-
-#progress-container {
-  width: 200px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-  margin-top: 40px;
-  overflow: hidden;
-}
-
-#progress-bar {
-  width: 0%;
-  height: 100%;
-  background: linear-gradient(90deg, #a855f7, #6366f1, #06b6d4);
-  background-size: 200% 100%;
-  animation: gradientMove 2s linear infinite;
-  transition: width 0.3s ease-out;
-}
-
-@keyframes gradientMove {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-
-#loading-text {
-  margin-top: 20px;
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 2px;
-}
-</style>

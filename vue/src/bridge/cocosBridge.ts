@@ -24,7 +24,7 @@ export function sendToCocos<T extends keyof RootEvents>(
             type: cocosEventName,
             data,
             from: 'vue' as const
-        }, '*');
+        }, window.location.origin);
     } else {
         window.dispatchEvent(new CustomEvent(cocosEventName, { detail: data }));
     }

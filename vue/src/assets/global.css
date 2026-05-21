@@ -1,3 +1,10 @@
+/* 自定义像素字体 */
+@font-face {
+  font-family: 'PixelFont';
+  src: url('@/assets/font/AaHMKJXST.woff2') format('woff2');
+  font-display: swap;
+}
+
 /* 全局 CSS 自定义属性定义 */
 :root {
   /* 默认主题颜色 */
@@ -7,4 +14,79 @@
   /* 边框动画 */
   --line-del: 0.3s;
   --line-dur: 1s;
+  /* 像素字体 */
+  --font-holo: 'PixelFont', 'Courier New', monospace;
+}
+
+/* 组件共用的 @keyframes */
+@keyframes splash-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes splash-gradient {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes holo-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes holo-expand-border {
+  0% { clip-path: inset(50%); opacity: 0; }
+  5% { opacity: 1; }
+  100% { clip-path: inset(0); opacity: 1; }
+}
+
+@keyframes holo-draw-svg {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes holo-pop-decor {
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes holo-power-on {
+  0% { transform: scaleY(0.005) scaleX(0); opacity: 0; filter: brightness(3); }
+  50% { transform: scaleY(0.005) scaleX(1); opacity: 1; filter: brightness(2); }
+  100% { transform: scaleY(1) scaleX(1); opacity: 1; filter: brightness(1); }
+}
+
+@keyframes holo-power-off {
+  0% { transform: scaleY(1) scaleX(1); opacity: 1; }
+  50% { transform: scaleY(0.005) scaleX(1); opacity: 1; filter: brightness(2); }
+  100% { transform: scaleY(0.005) scaleX(0); opacity: 0; filter: brightness(3); }
+}
+
+@keyframes holo-type-char {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes holo-slide-in-input {
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes holo-scan-barcode {
+  0% { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
+}
+
+@keyframes holo-barcode-loop {
+  0% { transform: scaleY(1); }
+  100% { transform: scaleY(0.3); }
+}
+
+@keyframes holo-fade-cell {
+  0% { opacity: 0; }
+  100% { opacity: 0.7; }
+}
+
+@keyframes holo-pulse-cell {
+  0% { opacity: 0.2; }
+  100% { opacity: 1; box-shadow: 0 0 10px var(--theme-color-glow); }
 }

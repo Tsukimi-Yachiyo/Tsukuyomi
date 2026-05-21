@@ -1,19 +1,25 @@
 <template>
-  <div class="cocos-container" ref="containerRef">
-    <div v-if="isLoading" class="loading-overlay">
-      <div class="loading-content">
-        <div class="loading-spinner"></div>
-        <span class="loading-text">{{ loadingText }}</span>
+  <div class="relative w-full h-screen overflow-hidden bg-[#0a0a0f]" ref="containerRef">
+    <div v-if="isLoading" class="absolute inset-0 bg-linear-to-br from-[#0a0a0f] to-[#1a1a2e] flex items-center justify-center z-100">
+      <div class="flex flex-col items-center gap-6">
+        <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-[#646cff] rounded-full animate-spin"></div>
+        <span class="text-base text-slate-400 font-sans">{{ loadingText }}</span>
       </div>
     </div>
-    <iframe 
+    <iframe
       ref="cocosIframe"
       :src="cocosUrl"
-      class="cocos-iframe"
+      class="absolute inset-0 w-full h-full border-none block"
       @load="onIframeLoad"
       sandbox="allow-scripts allow-same-origin allow-pointer-lock"
     ></iframe>
   </div>
+  <!-- 游戏 2D UI 层 -->
+  <GameUI @chat="onChatClick" @home="onHomeClick" />
+  <!-- 键盘按键提示 -->
+  <KeyboardHints />
+  <!-- 暂停面板 -->
+  <PausePanel :visible="isPauseVisible" @close="isPauseVisible = false" />
 </template>
 
 <script setup lang="ts">
@@ -21,6 +27,9 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { sendToCocos, initCocosBridge, setCocosIframe } from '@/bridge/cocosBridge';
 import { eventBus } from '@/utils/eventBus';
 import { useStore } from '@/store/userStore';
+import GameUI from '@/components/game/GameUI.vue';
+import KeyboardHints from '@/components/game/KeyboardHints.vue';
+import PausePanel from '@/components/game/PausePanel.vue';
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const cocosIframe = ref<HTMLIFrameElement | null>(null);
@@ -29,15 +38,43 @@ const loadingText = ref('正在加载游戏资源...');
 const cocosReady = ref(false);
 const cleanupFn = ref<(() => void) | null>(null);
 const initTimeoutRef = ref<number | null>(null);
+const handleIframeFocus = () => focusCocosCanvas();
+const isPauseVisible = ref(false);
+
+const onChatClick = () => {
+  // TODO: 打开聊天面板
+  console.log('[CocosContainer] Chat button clicked');
+};
+
+const onHomeClick = () => {
+  isPauseVisible.value = !isPauseVisible.value;
+  console.log('[CocosContainer] Pause panel toggled:', isPauseVisible.value);
+};
 
 const cocosUrl = '/cocos/index.html';
 const INIT_TIMEOUT = 15000;
+
+const focusCocosCanvas = () => {
+  if (!cocosIframe.value) return;
+  try {
+    const canvas = cocosIframe.value.contentWindow?.document.getElementById('GameCanvas');
+    if (canvas) {
+      (canvas as HTMLElement).focus();
+    } else {
+      cocosIframe.value.focus();
+    }
+  } catch {
+    cocosIframe.value.focus();
+  }
+};
 
 const completeInit = () => {
   if (!isLoading.value) return;
   cocosReady.value = true;
   isLoading.value = false;
   loadingText.value = '';
+  // 引擎就绪后聚焦 canvas，确保 Cocos input 系统能接收键盘事件
+  nextTick(focusCocosCanvas);
   console.log('[CocosContainer] Cocos initialization completed');
 };
 
@@ -49,6 +86,9 @@ const onIframeLoad = async () => {
   
   if (cocosIframe.value) {
     setCocosIframe(cocosIframe.value);
+    // 监听 iframe 获得焦点事件，确保 canvas 始终能接收键盘输入
+    cocosIframe.value.addEventListener('focus', handleIframeFocus);
+    focusCocosCanvas();
     console.log('[CocosContainer] iframe registered to bridge');
   }
   
@@ -86,14 +126,18 @@ const destroyCocos = () => {
     clearTimeout(initTimeoutRef.value);
     initTimeoutRef.value = null;
   }
-  
+
+  if (cocosIframe.value) {
+    cocosIframe.value.removeEventListener('focus', handleIframeFocus);
+  }
+
   setCocosIframe(null);
-  
+
   if (cleanupFn.value) {
     cleanupFn.value();
     cleanupFn.value = null;
   }
-  
+
   if (cocosIframe.value) {
     cocosIframe.value.src = '';
   }
@@ -112,10 +156,9 @@ onUnmounted(() => {
 watch(cocosReady, (ready) => {
   if (ready) {
     console.log('[CocosContainer] Sending login status to Cocos');
-
     if (useStore().isLoggedIn) {
       sendToCocos('login-success', {
-        userId: useStore().userId || 1, // 确保 userId 是数字或有默认值
+        userId: useStore().userId || 1,
         token: useStore().token
       });
     }
@@ -127,64 +170,3 @@ defineExpose({
   isReady: cocosReady,
 });
 </script>
-
-<style scoped>
-.cocos-container {
-  width: 100%;
-  height: 100vh;
-  position: relative;
-  overflow: hidden;
-  background: #0a0a0f;
-}
-
-.cocos-iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  display: block;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-.loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-}
-
-.loading-spinner {
-  width: 64px;
-  height: 64px;
-  border: 4px solid rgba(100, 108, 255, 0.2);
-  border-top-color: #646cff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-text {
-  font-size: 16px;
-  color: #94a3b8;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-</style>

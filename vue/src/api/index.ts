@@ -4,6 +4,14 @@ import {useStore} from "@/store/userStore";
 
 const baseURL = import.meta.env.VITE_API_URL || '';
 
+let isRefreshing = false;
+let refreshQueue: Array<() => void> = [];
+
+const processQueue = () => {
+    refreshQueue.forEach(cb => cb());
+    refreshQueue = [];
+};
+
 const service: AxiosInstance = axios.create({
     baseURL,
     timeout: 10000,
@@ -35,16 +43,31 @@ service.interceptors.response.use(
             return data;
         }
 
-        // 401/403 自动重试逻辑
+        // 401/403 自动重试逻辑（带锁防竞态）
         if (response.status === 401 || response.status === 403 || String(code) === '401' || String(code) === '403') {
+            if (isRefreshing) {
+                return new Promise((resolve) => {
+                    refreshQueue.push(() => {
+                        const userStore = useStore();
+                        response.config.headers['Authorization'] = `Bearer ${userStore.token}`;
+                        resolve(service(response.config));
+                    });
+                });
+            }
+
+            isRefreshing = true;
             const userStore = useStore();
 
             return userStore.refreshToken().then(() => {
+                processQueue();
                 response.config.headers['Authorization'] = `Bearer ${userStore.token}`;
                 return service(response.config);
             }).catch((refreshError) => {
+                processQueue();
                 userStore.logout();
                 return Promise.reject(refreshError);
+            }).finally(() => {
+                isRefreshing = false;
             });
         }
         return Promise.reject(new Error(message || 'Server Error'));
@@ -124,10 +147,10 @@ export const api = {
         getDetail: (id: number): Promise<T.PostDetailDTO> =>
             service.get(`/api/v2/posting/${id}`),
 
-        getStats: (postingId: number): Promise<any> =>
+        getStats: (postingId: number): Promise<T.PostStatsResponse> =>
             service.get('/api/v2/posting/stats', { params: { postingId } }),
 
-        search: (keyword: string, pageNum: number, pageSize: number): Promise<T.PostSearchDTO[]> =>
+        search: (keyword: string, pageNum: number, pageSize: number): Promise<T.PostEncapsulateDTO[]> =>
             service.get('/api/v2/posting/search', { params: { keyword, pageNum, pageSize } }),
 
         getLiked: (): Promise<number[]> =>
@@ -136,29 +159,36 @@ export const api = {
         getCollected: (): Promise<number[]> =>
             service.post('/api/v2/posting/collection'),
 
-        getEncapsulate: (postingId: number): Promise<any> =>
+        getEncapsulate: (postingId: number): Promise<T.PostEncapsulateDTO> =>
             service.get('/api/v2/posting/encapsulate', { params: { postingId } }),
 
-        getUserPosts: (userId: number): Promise<any[]> =>
+        getUserPosts: (userId: number): Promise<number[]> =>
             service.get('/api/v2/posting/user', { params: { userId } }),
 
         interact: (data: T.InteractionRequest): Promise<boolean> =>
             service.post('/api/v2/posting/interaction', data),
 
-        upload: (formData: FormData): Promise<boolean> =>
-            service.post('/api/v2/posting/upload', formData, {
+        upload: (title: string, content: string, type: string, coverImage?: File, files?: File[]): Promise<boolean> => {
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('content', content);
+            formData.append('type', type);
+            if (coverImage) formData.append('coverImage', coverImage);
+            if (files) files.forEach(f => formData.append('files', f));
+            return service.post('/api/v2/posting/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
-            }),
+            });
+        },
 
         delete: (id: number): Promise<boolean> =>
             service.delete(`/api/v2/posting/${id}`),
 
-        getMyPosts: (): Promise<any[]> =>
+        getMyPosts: (): Promise<T.SelfPostResponse[]> =>
             service.get('/api/v2/posting/my'),
     },
 
     comment: {
-        getList: (postingId: number): Promise<any[]> =>
+        getList: (postingId: number): Promise<T.CommentResponse[]> =>
             service.get('/api/v2/posting/comment', { params: { postingId } }),
 
         add: (data: T.CommentRequest): Promise<boolean> =>
@@ -172,10 +202,10 @@ export const api = {
         search: (keyword: string, pageNum: number, pageSize: number): Promise<any[]> =>
             service.get('/api/v2/column/search', { params: { keyword, pageNum, pageSize } }),
 
-        getInteractionStatus: (columnId: number): Promise<any> =>
+        getInteractionStatus: (columnId: number): Promise<T.InteractionResponse> =>
             service.get('/api/v2/column/interaction', { params: { columnId } }),
 
-        interact: (data: any): Promise<boolean> =>
+        interact: (data: T.InteractionRequest): Promise<boolean> =>
             service.put('/api/v2/column/interaction', data),
     },
 
@@ -183,15 +213,15 @@ export const api = {
         get: (): Promise<number> =>
             service.get('/api/v2/coin'),
 
-        update: (amount: number, type: string): Promise<boolean> =>
-            service.put('/api/v2/coin', { amount, type }),
+        update: (fromUserId: number, toUserId: number, type: T.TradeType, amount: number): Promise<boolean> =>
+            service.put('/api/v2/coin', { fromUserId, toUserId, type, amount }),
     },
 
     sign: {
         checkIn: (): Promise<boolean> =>
             service.post('/api/v2/sign/check-in'),
 
-        getStatus: (): Promise<T.SignStatusVO> =>
+        getStatus: (): Promise<boolean> =>
             service.post('/api/v2/sign/status'),
     },
 
@@ -202,13 +232,18 @@ export const api = {
         review: (data: T.ReviewRequest): Promise<boolean> =>
             service.post('/api/yachiyo/168/mini/admin/review', data),
 
-        queryPostings: (status: string, pageNum: number, pageSize: number): Promise<any[]> =>
-            service.post('/api/yachiyo/168/mini/admin/query-postings', { status, pageNum, pageSize }),
+        queryPostings: (status: T.PostingStatus, keyword: string, pageNum: number, pageSize: number): Promise<T.PostingResponse[]> =>
+            service.post('/api/yachiyo/168/mini/admin/query-postings', { status, keyword, pageNum, pageSize }),
 
-        addColumn: (formData: FormData): Promise<boolean> =>
-            service.post('/api/yachiyo/168/mini/admin/add-column', formData, {
+        addColumn: (name: string, description: string, type: T.EssayType, writerId: number, file: File): Promise<boolean> => {
+            const formData = new FormData();
+            const request = { name, description, type, writerId };
+            formData.append('request', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+            formData.append('file', file);
+            return service.post('/api/yachiyo/168/mini/admin/add-column', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
-            }),
+            });
+        },
 
         deleteColumn: (id: number): Promise<boolean> =>
             service.delete('/api/yachiyo/168/mini/admin/delete-column', { params: { id } }),

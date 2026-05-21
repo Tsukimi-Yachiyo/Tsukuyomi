@@ -64,16 +64,36 @@ export interface PostDetailDTO {
     files: string[];
 }
 
-export interface PostSearchDTO {
+export interface PostEncapsulateDTO {
     title: string;
     posterId: number;
     coverImage: string;
 }
 
+export interface PostStatsResponse {
+    likeCount: number;
+    collectionCount: number;
+    readingCount: number;
+    coinCount: number;
+    liked: boolean;
+    collected: boolean;
+    coined: number;
+}
+
+export interface SelfPostResponse {
+    postingId: number;
+    approved: boolean;
+}
+
 export interface InteractionRequest {
     postingId: number;
-    type: 'LIKE' | 'COLLECTION' | 'COIN';
-    action: 'ADD' | 'REMOVE' | 'TOGGLE';
+    type: InteractionType;
+    action: InteractionAction;
+}
+
+export interface InteractionResponse {
+    coin: number;
+    like: number;
 }
 
 export interface CommentRequest {
@@ -81,15 +101,27 @@ export interface CommentRequest {
     content: string;
 }
 
+export interface CommentResponse {
+    id: number;
+    userId: number;
+    content: string;
+}
+
+export type InteractionType = 'LIKE' | 'COLLECTION' | 'COIN';
+export type InteractionAction = 'ADD' | 'REMOVE' | 'TOGGLE';
+
 // ==========================================
 // 4. Coin & Sign (金币与签到) 相关
 // ==========================================
 
-export interface SignStatusVO {
-    isSigned: boolean;
-    continuousDays: number;
-    lastSignTime: string;
+export interface CoinChangeRequest {
+    fromUserId: number;
+    toUserId: number;
+    type: TradeType;
+    amount: number;
 }
+
+export type TradeType = 'TIP' | 'CHECKIN' | 'MAIL' | 'CHARGE' | 'BUY';
 
 // ==========================================
 // 5. File (文件服务) 相关
@@ -106,6 +138,36 @@ export interface UploadResponse {
 
 export interface ReviewRequest {
     postingId: number;
-    action: 'APPROVE' | 'REJECT' | 'DELETE';
+    action: ReviewAction;
     reason?: string;
 }
+
+export interface PostingQueryRequest {
+    status: PostingStatus;
+    keyword: string;
+    pageNum: number;
+    pageSize: number;
+}
+
+export interface PostingResponse {
+    id: number;
+    userId: number;
+    title: string;
+    content: string;
+    type: string;
+    isApproved: boolean;
+    createTime: string;
+    score: number;
+}
+
+export interface AddColumnRequest {
+    name: string;
+    description: string;
+    type: EssayType;
+    writerId: number;
+    file: File;
+}
+
+export type ReviewAction = 'APPROVE' | 'REJECT' | 'DELETE';
+export type PostingStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+export type EssayType = 'SIMPLE' | 'NOVEL' | 'ACTIVITY';

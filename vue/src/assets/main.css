@@ -1,13 +1,12 @@
 /* 【最新 v4 写法】仅需这一行，即可导入所有 Tailwind 样式与原子类 */
 @import "tailwindcss";
 
-/* 以下是你原有的全局基础样式 */
 body, html, #app {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: auto;
   background: #000;
 }
 

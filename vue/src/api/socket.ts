@@ -143,7 +143,7 @@ export class SocketService {
                     if (this.PlayerChat) {
                         const chatData = this.PlayerChat.decode(payload);
                         console.log('[数据-聊天]', chatData);
-                        eventBus.emit('vue:new-chat', chatData);
+                        eventBus.emit('cocos:new-chat', chatData);
                     }
                     break;
                 case OpCode.BLOCK_INTERACTION:

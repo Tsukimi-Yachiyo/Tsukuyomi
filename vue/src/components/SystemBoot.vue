@@ -4,35 +4,29 @@
   
   <!-- 主容器：控制整体渲染时机 -->
   <div v-show="isReadyToRender">
-    <!-- 维护页面：后端不可用时显示 -->
-    <MaintenancePage v-if="currentView === 'maintenance'" @retry="retryBackendCheck" />
-    
-    <!-- 正常流程：视频背景 + 登录/游戏界面 -->
-    <template v-else>
-      <!-- 视频背景容器 -->
-      <div class="video-container">
-        <video
-          ref="videoRef"
-          class="boot-video"
-          :class="{ 'fade-in': isVideoVisible }"
-          :src="currentVideoUrl"
-          autoplay
-          muted
-          playsinline
-          @ended="onVideoEnded"
-        />
-      </div>
-      
-      <!-- 登录面板容器 -->
-      <div class="login-container">
-        <LoginPanel v-if="currentView === 'login'" />
-      </div>
-      
-      <!-- 游戏容器 -->
-      <div class="game-container">
-        <CocosContainer v-if="currentView === 'game'" />
-      </div>
-    </template>
+    <!-- 视频背景容器 -->
+    <div class="fixed inset-0 z-10 overflow-hidden pointer-events-none">
+      <video
+        ref="videoRef"
+        class="w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-in-out"
+        :class="{ 'opacity-100': isVideoVisible }"
+        :src="currentVideoUrl"
+        autoplay
+        muted
+        playsinline
+        @ended="onVideoEnded"
+      />
+    </div>
+
+    <!-- 登录面板容器 -->
+    <div class="fixed inset-0 z-100 flex items-center justify-center pointer-events-auto">
+      <LoginPanel v-if="currentView === 'login'" />
+    </div>
+
+    <!-- 游戏容器 -->
+    <div class="fixed inset-0 pointer-events-auto" :class="gameContainerZClass">
+      <CocosContainer v-if="currentView === 'game'" />
+    </div>
   </div>
   <!-- 弹幕提示组件 -->
   <HoloDanmaku />
@@ -41,10 +35,10 @@
 <script setup lang="ts">
 // 导入 Vue 核心 API
 import { reactive, computed, onMounted, ref, watch, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 // 导入子组件
 import SplashScreen from '@/components/SplashScreen.vue';
 import LoginPanel from '@/components/login/LoginPanel.vue';
-import MaintenancePage from '@/page/MaintenancePage.vue';
 import CocosContainer from '@/components/CocosContainer.vue';
 import HoloDanmaku from '@/components/holo/HoloDanmaku.vue';
 // 导入状态管理和服务
@@ -66,14 +60,14 @@ type BootPhase = 'idle' | 'checking-backend' | 'loading-resources' | 'ready';
 
 /**
  * 当前视图类型
- * - maintenance: 维护页面
  * - login: 登录界面
  * - game: 游戏界面
  */
-type ViewType = 'maintenance' | 'login' | 'game';
+type ViewType = 'login' | 'game';
 
 // 用户状态管理器
 const userStore = useStore();
+const router = useRouter();
 // 视频元素引用
 const videoRef = ref<HTMLVideoElement | null>(null);
 
@@ -97,6 +91,7 @@ const currentVideoIndex = ref(0);        // 当前播放的视频索引（0=循�
 const shouldSwitchVideo = ref(false);    // 是否需要切换到加载视频
 const splashProgress = ref(0);           // 启动画面进度
 const isSplashHidden = ref(false);       // 启动画面是否隐藏
+const gameContainerZClass = ref('z-0'); // 游戏容器层级
 
 /**
  * 视频资源列表
@@ -110,10 +105,9 @@ const currentVideoUrl = computed(() => videoUrls[currentVideoIndex.value]);
 
 /**
  * 当前视图类型（计算属性）
- * 根据后端状态、启动阶段和登录状态决定显示哪个界面
+ * 根据启动阶段和登录状态决定显示哪个界面
  */
 const currentView = computed<ViewType>(() => {
-  if (!state.isBackendReady) return 'maintenance';
   if (state.phase === 'ready' && userStore.isLoggedIn) {
     return 'game';
   }
@@ -132,10 +126,10 @@ const runBootSequence = async () => {
   const healthy = await checkBackendHealth();
   state.isBackendReady = healthy;
 
-  // 后端不可用，显示维护页面
+  // 后端不可用，跳转维护页面
   if (!healthy) {
-    isReadyToRender.value = true;
     isSplashHidden.value = true;
+    router.push('/maintenance');
     return;
   }
 
@@ -156,10 +150,11 @@ const runBootSequence = async () => {
     isReadyToRender.value = true;
   }, 500);
 
-  // 如果已有登录状态，静默验证会话
+  // 如果已有登录状态，静默验证会话并建立连接
   if (userStore.isLoggedIn) {
     state.isLoginValidated = await userStore.validateAndRestoreSession();
     if (state.isLoginValidated) {
+      await completeBootSequence();
       shouldSwitchVideo.value = true;
     }
   }
@@ -192,10 +187,7 @@ const onVideoEnded = async () => {
         videoRef.value.pause();
       }
       // 提升游戏容器层级，完成弹出效果
-      const gameContainer = document.querySelector('.game-container') as HTMLElement;
-      if (gameContainer) {
-        gameContainer.style.zIndex = '100';
-      }
+      gameContainerZClass.value = 'z-50';
     }, 500);
   }
 };
@@ -234,11 +226,11 @@ const completeBootSequence = async () => {
 watch(() => userStore.isLoggedIn, async (isLoggedIn) => {
   if (isLoggedIn && state.phase === 'ready') {
     const isValid = await userStore.validateAndRestoreSession();
-    await completeBootSequence();
     if (isValid) {
+      await completeBootSequence();
       state.isLoginValidated = true;
       shouldSwitchVideo.value = true;
-      
+
       // 如果当前在循环视频，停止循环等待切换
       if (videoRef.value && currentVideoIndex.value === 0) {
         videoRef.value.loop = false;
@@ -246,14 +238,6 @@ watch(() => userStore.isLoggedIn, async (isLoggedIn) => {
     }
   }
 });
-
-/**
- * 重试后端检测
- * 供维护页面调用
- */
-const retryBackendCheck = () => {
-  runBootSequence();
-};
 
 /**
  * 组件挂载时启动初始化流程
@@ -272,65 +256,3 @@ onUnmounted(() => {
   }
 });
 </script>
-
-<style scoped>
-/**
- * 视频容器样式
- * 作为背景层，不接收点击事件
- */
-.video-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  z-index: 0;
-  pointer-events: none;
-}
-
-/**
- * 视频元素样式
- */
-.boot-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.5s ease-in-out;
-}
-
-.boot-video.fade-in {
-  opacity: 1;
-}
-
-/**
- * 登录容器样式
- * 居中显示登录面板
- */
-.login-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 100;
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/**
- * 游戏容器样式
- */
-.game-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: -10;
-  pointer-events: auto;
-}
-</style>

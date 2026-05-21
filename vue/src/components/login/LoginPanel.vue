@@ -165,8 +165,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onUnmounted } from 'vue';
+import { ref, reactive } from 'vue';
 import { useStore } from '@/store/userStore';
+import { useCountdown } from '@/composables/useCountdown';
 import HoloPanel from '@/components/holo/HoloPanel.vue';
 import HoloBorder from '@/components/holo/HoloBorder.vue';
 import HoloText from '@/components/holo/HoloText.vue';
@@ -182,12 +183,7 @@ const userStore = useStore();
 const animKey = ref(0);
 const showCaptcha = ref(false);
 const currentCaptchaContext = ref<'register' | 'forgot' | null>(null);
-const countdown = ref(0);
-let countdownTimer: number | null = null;
-
-onUnmounted(() => {
-  if (countdownTimer) clearInterval(countdownTimer);
-});
+const { countdown, start: startCountdown } = useCountdown(60);
 
 type Tab = 'password' | 'email' | 'register' | 'forgot';
 const currentTab = ref<Tab>('password');
@@ -200,18 +196,6 @@ const loginForm = reactive({ email: '', password: '' });
 const emailLoginForm = reactive({ email: '', code: '' });
 const registerForm = reactive({ email: '', code: '', password: '', confirmPassword: '' });
 const forgotForm = reactive({ email: '', code: '', newPassword: '', confirmPassword: '' });
-
-const startCountdown = () => {
-  countdown.value = 60;
-  if (countdownTimer) clearInterval(countdownTimer);
-  countdownTimer = window.setInterval(() => {
-    countdown.value--;
-    if (countdown.value <= 0) {
-      if (countdownTimer) clearInterval(countdownTimer);
-      countdownTimer = null;
-    }
-  }, 1000);
-};
 
 const handleSendCode = async (context: 'emailLogin' | 'register' | 'forgot') => {
   let email = '';

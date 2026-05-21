@@ -5,7 +5,6 @@ export type RootEvents = {
     // Vue 发送给 Cocos 的事件 (以 vue: 开头)
     'vue:login-success': { token: string };
     'vue:change-theme': { isDark: boolean };
-    'vue:new-chat': any;
 
     // 全局弹幕消息事件
     'vue:show-message': { text: string; type?: 'success' | 'error' | 'warning' | 'info' };
@@ -18,6 +17,7 @@ export type RootEvents = {
     'cocos:player-join-leave': any;
     'cocos:player-position': any;
     'cocos:room-sync-frame': any;
+    'cocos:new-chat': any;
 
     // Socket 事件
     'socket:connected': void;

@@ -46,6 +46,7 @@ const textStyle = computed(() => ({
   margin: 0;
   line-height: 1.2;
   white-space: pre-wrap;
+  font-family: var(--font-holo);
 }
 
 .holo-text.is-secondary {

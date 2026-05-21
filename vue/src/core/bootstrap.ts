@@ -1,20 +1,5 @@
 import { api } from '@/api';
 
-export const updateProgress = (percent: number) => {
-  const progressBar = document.getElementById('progress-bar');
-  if (progressBar) {
-    progressBar.style.width = `${percent}%`;
-  }
-};
-
-export const hideSplashScreen = () => {
-  const splashScreen = document.getElementById('splash-screen');
-  if (splashScreen) {
-    splashScreen.classList.add('hidden');
-    setTimeout(() => splashScreen.remove(), 800);
-  }
-};
-
 const preloadImage = (src: string): Promise<void> => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -24,25 +9,30 @@ const preloadImage = (src: string): Promise<void> => {
   });
 };
 
+const preloadVideo = async (src: string): Promise<void> => {
+  try {
+    await fetch(src);
+  } catch {
+    // 静默失败，不阻塞启动流程
+  }
+};
+
 export const preloadResources = async () => {
-  const modules = import.meta.glob('../assets/**/*.{png,jpg,jpeg,gif,svg,webp,mp4}', { eager: true });
-  const resourceList = Object.values(modules);
-  const totalResources = resourceList.length;
-  let loadedCount = 0;
+  const imageModules = import.meta.glob('../assets/**/*.{png,jpg,jpeg,gif,svg,webp}', { eager: true });
+  const videoModules = import.meta.glob('../assets/**/*.mp4', { eager: true });
 
-  if (totalResources === 0) return;
+  const imageUrls = Object.values(imageModules)
+    .map((r: any) => typeof r === 'string' ? r : r?.default)
+    .filter((u): u is string => typeof u === 'string');
 
-  const loadPromises = resourceList.map(async (resource: any) => {
-    const url = typeof resource === 'string' ? resource : resource?.default;
-    if (typeof url === 'string') {
-      await preloadImage(url);
-    }
-    loadedCount++;
-    const progress = Math.floor((loadedCount / totalResources) * 80);
-    updateProgress(progress);
-  });
+  const videoUrls = Object.values(videoModules)
+    .map((r: any) => typeof r === 'string' ? r : r?.default)
+    .filter((u): u is string => typeof u === 'string');
 
-  await Promise.all(loadPromises);
+  await Promise.all([
+    ...imageUrls.map(preloadImage),
+    ...videoUrls.map(preloadVideo),
+  ]);
 };
 
 export const checkBackendHealth = async (): Promise<boolean> => {
