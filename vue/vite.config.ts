@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
+import postCssPxToRem from 'postcss-pxtorem'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -17,6 +18,16 @@ export default defineConfig(({ mode }) => {
       vueDevTools(),
       tailwindcss(),
     ],
+    css: {
+      postcss: {
+        plugins: [
+          postCssPxToRem({
+            rootValue: 16, // 视你的设计稿而定，160px -> 16
+            propList: ['*'],
+          }),
+        ],
+      },
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url))
@@ -24,6 +35,8 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       allowedHosts: [
+        '0.0.0.0',
+        'yachiyocat.top',
         'localhost',
         '127.0.0.1',
       ],
