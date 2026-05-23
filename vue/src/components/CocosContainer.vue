@@ -7,29 +7,43 @@
       </div>
     </div>
     <iframe
-      ref="cocosIframe"
-      :src="cocosUrl"
-      class="absolute inset-0 w-full h-full border-none block"
-      @load="onIframeLoad"
-      sandbox="allow-scripts allow-same-origin allow-pointer-lock"
+        ref="cocosIframe"
+        :src="cocosUrl"
+        class="absolute inset-0 w-full h-full border-none block"
+        @load="onIframeLoad"
+        sandbox="allow-scripts allow-same-origin allow-pointer-lock"
     ></iframe>
   </div>
   <!-- 游戏 2D UI 层 -->
-  <GameUI @chat="onChatClick" @home="onHomeClick" />
+  <GameUI
+      :paused="isPaused"
+      @chat="onChatClick"
+      @home="onHomeClick"
+      @pause-hover="onPauseHover"
+  />
   <!-- 键盘按键提示 -->
-  <KeyboardHints />
-  <!-- 暂停面板 -->
-  <PausePanel :visible="isPauseVisible" @close="isPauseVisible = false" />
+  <KeyboardHints :paused="isPaused" />
+  <!-- 暂停动画 -->
+  <PauseMoon
+      v-model:paused="isPaused"
+      :hovered="isPauseHovered"
+      :button-rect="pauseBtnRect"
+  >
+    <template #message>
+      <UserInfoPause />
+    </template>
+  </PauseMoon>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { sendToCocos, initCocosBridge, setCocosIframe } from '@/bridge/cocosBridge';
 import { eventBus } from '@/utils/eventBus';
-import { useStore } from '@/store/userStore';
+import { useUserStore } from '@/store/userStore';
 import GameUI from '@/components/game/GameUI.vue';
 import KeyboardHints from '@/components/game/KeyboardHints.vue';
-import PausePanel from '@/components/game/PausePanel.vue';
+import PauseMoon from '@/components/game/PauseMoon.vue';
+import UserInfoPause from "@/components/game/UserInfoPause.vue";
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const cocosIframe = ref<HTMLIFrameElement | null>(null);
@@ -38,8 +52,9 @@ const loadingText = ref('正在加载游戏资源...');
 const cocosReady = ref(false);
 const cleanupFn = ref<(() => void) | null>(null);
 const initTimeoutRef = ref<number | null>(null);
-const handleIframeFocus = () => focusCocosCanvas();
-const isPauseVisible = ref(false);
+const isPaused = ref(false);
+const isPauseHovered = ref(false);
+const pauseBtnRect = ref<DOMRect | null>(null);
 
 const onChatClick = () => {
   // TODO: 打开聊天面板
@@ -47,51 +62,61 @@ const onChatClick = () => {
 };
 
 const onHomeClick = () => {
-  isPauseVisible.value = !isPauseVisible.value;
-  console.log('[CocosContainer] Pause panel toggled:', isPauseVisible.value);
+  isPaused.value = !isPaused.value;
+  console.log('[CocosContainer] Pause toggled:', isPaused.value);
+};
+
+const onPauseHover = (hovering: boolean, rect: DOMRect | null) => {
+  isPauseHovered.value = hovering;
+  pauseBtnRect.value = rect;
 };
 
 const cocosUrl = '/cocos/index.html';
 const INIT_TIMEOUT = 15000;
-
-const focusCocosCanvas = () => {
-  if (!cocosIframe.value) return;
-  try {
-    const canvas = cocosIframe.value.contentWindow?.document.getElementById('GameCanvas');
-    if (canvas) {
-      (canvas as HTMLElement).focus();
-    } else {
-      cocosIframe.value.focus();
-    }
-  } catch {
-    cocosIframe.value.focus();
-  }
-};
 
 const completeInit = () => {
   if (!isLoading.value) return;
   cocosReady.value = true;
   isLoading.value = false;
   loadingText.value = '';
-  // 引擎就绪后聚焦 canvas，确保 Cocos input 系统能接收键盘事件
-  nextTick(focusCocosCanvas);
   console.log('[CocosContainer] Cocos initialization completed');
 };
 
 const onIframeLoad = async () => {
   console.log('[CocosContainer] Cocos iframe loaded');
   loadingText.value = '正在初始化引擎...';
-  
+
   await nextTick();
-  
+
   if (cocosIframe.value) {
     setCocosIframe(cocosIframe.value);
-    // 监听 iframe 获得焦点事件，确保 canvas 始终能接收键盘输入
-    cocosIframe.value.addEventListener('focus', handleIframeFocus);
-    focusCocosCanvas();
-    console.log('[CocosContainer] iframe registered to bridge');
+
+    // ✅ 向 iframe 注入拦截脚本
+    try {
+      const iframeDoc = cocosIframe.value.contentDocument;
+      if (iframeDoc) {
+        const script = iframeDoc.createElement('script');
+        script.textContent = `
+          (function() {
+            // 保存原始 focus 以备后用（如果需要）
+            const originalFocus = HTMLCanvasElement.prototype.focus;
+            HTMLCanvasElement.prototype.focus = function() {
+            };
+          })();
+        `;
+        // 插入到 head 最前面，确保在 Cocos 引擎代码执行前
+        const firstScript = iframeDoc.head?.querySelector('script');
+        if (firstScript) {
+          iframeDoc.head.insertBefore(script, firstScript);
+        } else {
+          iframeDoc.head?.appendChild(script);
+        }
+      }
+    } catch (e) {
+      console.warn('[CocosContainer] Failed to inject focus blocker', e);
+    }
   }
-  
+
   initTimeoutRef.value = window.setTimeout(() => {
     console.warn('[CocosContainer] Engine ready timeout, proceeding anyway');
     completeInit();
@@ -100,7 +125,7 @@ const onIframeLoad = async () => {
 
 const setupMessageBridge = (): (() => void) => {
   const cleanup = initCocosBridge();
-  
+
   const handleEngineReady = () => {
     if (initTimeoutRef.value) {
       clearTimeout(initTimeoutRef.value);
@@ -108,9 +133,9 @@ const setupMessageBridge = (): (() => void) => {
     }
     completeInit();
   };
-  
+
   eventBus.on('cocos:engine-ready', handleEngineReady);
-  
+
   return () => {
     cleanup();
     eventBus.off('cocos:engine-ready', handleEngineReady);
@@ -125,10 +150,6 @@ const destroyCocos = () => {
   if (initTimeoutRef.value) {
     clearTimeout(initTimeoutRef.value);
     initTimeoutRef.value = null;
-  }
-
-  if (cocosIframe.value) {
-    cocosIframe.value.removeEventListener('focus', handleIframeFocus);
   }
 
   setCocosIframe(null);
@@ -156,10 +177,10 @@ onUnmounted(() => {
 watch(cocosReady, (ready) => {
   if (ready) {
     console.log('[CocosContainer] Sending login status to Cocos');
-    if (useStore().isLoggedIn) {
+    if (useUserStore().isLoggedIn) {
       sendToCocos('login-success', {
-        userId: useStore().userId || 1,
-        token: useStore().token
+        userId: useUserStore().userId || 1,
+        token: useUserStore().token
       });
     }
   }

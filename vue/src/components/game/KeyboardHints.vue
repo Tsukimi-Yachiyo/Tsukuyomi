@@ -1,7 +1,7 @@
 <template>
   <div v-if="isVisible" class="keyboard-hints-root">
     <Transition name="hint-bar">
-      <div v-if="bottomHints.length" class="bottom-bar">
+      <div v-if="bottomHints.length && !paused" class="bottom-bar">
         <div
           v-for="hint in bottomHints"
           :key="hint.key"
@@ -19,6 +19,12 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useKeyboardHints } from '@/composables/useKeyboardHints';
 import { eventBus } from '@/utils/eventBus';
+
+withDefaults(defineProps<{
+  paused?: boolean;
+}>(), {
+  paused: false,
+});
 
 const { bottomHints } = useKeyboardHints();
 

@@ -12,7 +12,6 @@
         :bubble-speed-range="[1.5, 4.0]"
         :fill-depth="80"
         @complete="onOceanComplete"
-        @wave-y="onWaveY"
       />
       <!-- 水面涟漪 -->
       <OceanRipple
@@ -27,38 +26,32 @@
         :energy-decay="0.6"
         :layer-delay="10"
       />
-      <!-- 深海鱼群 -->
-      <OceanFish
-        v-if="oceanDone"
-        :count="12"
-        :colors="['#0075a1', '#00598e', '#2aa198', '#4fc3f7', '#0288d1']"
-        :size-range="[6, 16]"
-        :speed-range="[0.3, 1.2]"
-      />
     </div>
 
-    <!-- 浮动操作区（海浪上方，右侧） -->
-    <div
-      v-if="!loading && post && oceanDone"
-      class="fixed right-6 z-20 flex flex-col items-center gap-4 transition-all duration-500 animate-float"
-      :style="{ top: floatingTop + 'px' }"
-    >
-      <UserAvatar :user-id="post.posterId" size="lg" />
-      <div class="flex flex-col items-center gap-3 mt-2">
-        <button
-          v-for="action in actions"
-          :key="action.type"
-          class="w-11 h-11 rounded-full flex items-center justify-center bg-[#0c1e35]/80 border border-white/10 text-white/60 hover:bg-cyan-400/15 hover:border-cyan-400/40 hover:text-cyan-400 transition-all"
-          :class="{ 'bg-cyan-400/15 border-cyan-400/40 text-cyan-400': interactions[action.type] }"
-          :title="action.label"
-          @click="interact(action.type)"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle v-if="action.circle" :cx="action.circle.cx" :cy="action.circle.cy" :r="action.circle.r" />
-            <path v-for="(p, i) in action.iconPaths" :key="i" :d="p" />
-          </svg>
-        </button>
+    <!-- 浮动操作区（沿波浪边缘分布，每个元素独立跟随海浪） -->
+    <div v-if="!loading && post && oceanDone" class="fixed inset-0 z-20 pointer-events-none">
+      <!-- 头像 -->
+      <div
+        class="absolute pointer-events-auto"
+        :style="{ left: waveItems[0].x + 'px', top: waveItems[0].y + 'px' }"
+      >
+        <UserAvatar :user-id="post.posterId" size="lg" />
       </div>
+      <!-- 三个按钮 -->
+      <button
+        v-for="(action, index) in actions"
+        :key="action.type"
+        class="absolute w-11 h-11 rounded-full flex items-center justify-center bg-[#0c1e35]/80 border border-white/10 text-white/60 hover:bg-cyan-400/15 hover:border-cyan-400/40 hover:text-cyan-400 transition-all pointer-events-auto"
+        :class="{ 'bg-cyan-400/15 border-cyan-400/40 text-cyan-400': interactions[action.type] }"
+        :style="{ left: waveItems[index + 1].x + 'px', top: waveItems[index + 1].y + 'px' }"
+        :title="action.label"
+        @click="interact(action.type)"
+      >
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle v-if="action.circle" :cx="action.circle.cx" :cy="action.circle.cy" :r="action.circle.r" />
+          <path v-for="(p, i) in action.iconPaths" :key="i" :d="p" />
+        </svg>
+      </button>
     </div>
 
     <!-- 主内容（海浪下方，固定不动） -->
@@ -165,6 +158,9 @@
     >
       <img :src="previewUrl" alt="预览" class="max-w-[90%] max-h-[90%] object-contain rounded-lg" />
     </div>
+
+    <!-- 登录弹窗 -->
+    <LoginModal v-if="showLoginModal" @success="onLoginSuccess" />
   </div>
 </template>
 
@@ -174,6 +170,7 @@
   import { api } from '@/api';
   import type { CommentResponse, InteractionType, PostDetailDTO } from '@/api/types';
   import { useFormatTime } from '@/composables/useFormatTime';
+  import { useAuthCheck } from '@/composables/useAuthCheck';
   import OceanLoading from '@/components/ocean/OceanLoading.vue';
   import OceanRipple from '@/components/ocean/OceanRipple.vue';
   import OceanFish from '@/components/ocean/OceanFish.vue';
@@ -181,8 +178,10 @@
   import OceanButton from '@/components/ocean/OceanButton.vue';
   import MarkdownRenderer from '@/components/viewer/MarkdownRenderer.vue';
   import UserAvatar from '@/components/UserAvatar.vue';
+  import LoginModal from '@/components/login/LoginModal.vue';
 
   const router = useRouter();
+  const { showLoginModal, checkAuth, onLoginSuccess } = useAuthCheck();
   const route = useRoute();
   const { formatRelativeTime: formatTime } = useFormatTime();
 
@@ -194,16 +193,29 @@
 
   const oceanLoadingRef = ref<InstanceType<typeof OceanLoading>>();
   const oceanDone = ref(false);
-  const floatingTop = ref(80);
   const contentRef = ref<HTMLDivElement>();
   const scrolled = ref(false);
 
+  // 沿波浪边缘分布：头像 + 3个按钮 = 4个元素
+  // 每个元素在不同x位置，y = 波浪在该x处的高度
+  const waveItems = ref<{ x: number; y: number }[]>([
+    { x: 0, y: 80 }, { x: 0, y: 80 }, { x: 0, y: 80 }, { x: 0, y: 80 },
+  ]);
   let waveRafId = 0;
-  function onWaveY(y: number) {
-    cancelAnimationFrame(waveRafId);
-    waveRafId = requestAnimationFrame(() => {
-      floatingTop.value = Math.max(20, y - 120);
-    });
+  function updateWaveItems() {
+
+    const w = window.innerWidth;
+
+    for (let i = 0; i < 4; i++) {
+      const x = w * (0.7 + i * 0.07);
+      // 多层正弦叠加（与OceanWaves waveY公式一致）
+      // 获取 海浪在 x 处的高度
+      let y =  oceanLoadingRef.value?.getWaveYAtX(x) ?? 0;
+
+      waveItems.value[i].x = x - 22; // 减去按钮半径，居中
+      waveItems.value[i].y = y; // 波浪上方偏移
+    }
+    waveRafId = requestAnimationFrame(updateWaveItems);
   }
   const waveLayers = [
     { color: '#0075a1', amplitude: 18, frequency: 0.012, speed: 0.015, offsetY: 0, opacity: 1, jitter: 0.3 },
@@ -308,26 +320,21 @@
   };
 
   onMounted(() => {
+    if (!checkAuth()) return;
     loadPost();
     contentRef.value?.addEventListener('scroll', onScroll);
     window.addEventListener('keydown', onKeydown);
+    waveRafId = requestAnimationFrame(updateWaveItems);
   });
 
   onUnmounted(() => {
+    cancelAnimationFrame(waveRafId);
     contentRef.value?.removeEventListener('scroll', onScroll);
     window.removeEventListener('keydown', onKeydown);
   });
   </script>
 
   <style scoped>
-  @keyframes float {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-6px); }
-    75% { transform: translateX(6px); }
-  }
-  .animate-float {
-    animation: float 4s ease-in-out infinite;
-  }
   .scrollbar-hidden {
     scrollbar-width: none;
     -ms-overflow-style: none;

@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import {ref, watch} from 'vue';
 
 const props = defineProps<{
   progress: number;
@@ -30,11 +30,10 @@ let intervalId: number | null = null;
 
 const animateText = () => {
   frame = (frame + 1) % loadingChars.length;
-  const text = loadingChars.map((char, i) => {
+  loadingText.value = loadingChars.map((char, i) => {
     if (i === frame) return char;
     return char.toLowerCase();
   }).join('');
-  loadingText.value = text;
 };
 
 watch(() => props.isHidden, (hidden) => {

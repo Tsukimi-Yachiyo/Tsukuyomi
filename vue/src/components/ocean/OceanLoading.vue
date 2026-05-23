@@ -60,6 +60,8 @@ const props = withDefaults(defineProps<{
   gradientColors?: string[];
   /** 波浪填充深度 (px)，0=填满到底部 */
   fillDepth?: number;
+  /** 波浪Y采样点的X比率 (0-1)，0=左边缘，0.5=中央(默认)，1=右边缘 */
+  samplingXRatio?: number;
 }>(), {
   width: 0,
   height: 0,
@@ -71,6 +73,7 @@ const props = withDefaults(defineProps<{
   bubbleSizeRange: () => [2, 7],
   gradientColors: () => ['#0a2a4a', '#0d4b6e', '#1a7a8a'],
   fillDepth: 0,
+  samplingXRatio: 0.5,
 });
 
 const emit = defineEmits<{
@@ -91,7 +94,8 @@ let ceilingTimer = 0;
 function startCeilingLoop() {
   const update = () => {
     if (wavesRef.value) {
-      ceilingY.value = wavesRef.value.getWaveY(window.innerWidth / 2, 0);
+      const samplingX = window.innerWidth * props.samplingXRatio;
+      ceilingY.value = wavesRef.value.getWaveY(samplingX, 0);
       emit('waveY', ceilingY.value);
     }
     ceilingTimer = requestAnimationFrame(update);
@@ -134,6 +138,12 @@ watch(() => props.loading, (val) => {
 onUnmounted(() => {
   cancelAnimationFrame(ceilingTimer);
 });
+
+function getWaveYAtX(x: number): number {
+  return wavesRef.value?.getWaveY(x, 0) ?? 0;
+}
+
+defineExpose({ getWaveYAtX });
 </script>
 
 <style scoped>

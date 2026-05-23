@@ -3,7 +3,7 @@ import {eventBus} from '@/utils/eventBus';
 import {api} from '@/api';
 import type {ChangePasswordParams, MailLoginParams, RegisterParams, UserDetailDTO} from '@/api/types';
 
-export const useStore = defineStore('user', {
+export const useUserStore = defineStore('user', {
     state: () => ({
         userId: localStorage.getItem('userId') || '',
         token: localStorage.getItem('token') || '',

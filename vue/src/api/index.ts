@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import * as T from './types';
-import {useStore} from "@/store/userStore";
+import {useUserStore} from "@/store/userStore";
 
 const baseURL = import.meta.env.VITE_API_URL || '';
 
@@ -20,7 +20,7 @@ const service: AxiosInstance = axios.create({
 
 service.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        const userStore = useStore();
+        const userStore = useUserStore();
         const token = userStore.token;
         if (token && config.headers) {
             config.headers['Authorization'] = `Bearer ${token}`;
@@ -30,9 +30,43 @@ service.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// 提取通用的 401/403 重试逻辑
+const handleUnauthorized = async (config: InternalAxiosRequestConfig) => {
+    console.log('触发 401/403 自动重试逻辑');
+
+    if (isRefreshing) {
+        return new Promise((resolve) => {
+            refreshQueue.push(() => {
+                const userStore = useUserStore();
+                config.headers['Authorization'] = `Bearer ${userStore.token}`;
+                resolve(service(config));
+            });
+        });
+    }
+
+    isRefreshing = true;
+    const userStore = useUserStore();
+
+    try {
+        try {
+            await userStore.refreshToken();
+            processQueue();
+            config.headers['Authorization'] = `Bearer ${userStore.token}`;
+            return await service(config);
+        } catch (refreshError) {
+            // 刷新 Token 也失败了，清空队列并退出登录
+            refreshQueue = [];
+            userStore.logout();
+            return await Promise.reject(refreshError);
+        }
+    } finally {
+        isRefreshing = false;
+    }
+};
+
 service.interceptors.response.use(
     (response: AxiosResponse) => {
-        // 健康检查接口特殊处理保持不变
+        // 健康检查接口特殊处理
         if (response.config.url?.includes('/test/hello')) {
             return response.data;
         }
@@ -43,36 +77,20 @@ service.interceptors.response.use(
             return data;
         }
 
-        // 401/403 自动重试逻辑（带锁防竞态）
-        if (response.status === 401 || response.status === 403 || String(code) === '401' || String(code) === '403') {
-            if (isRefreshing) {
-                return new Promise((resolve) => {
-                    refreshQueue.push(() => {
-                        const userStore = useStore();
-                        response.config.headers['Authorization'] = `Bearer ${userStore.token}`;
-                        resolve(service(response.config));
-                    });
-                });
-            }
-
-            isRefreshing = true;
-            const userStore = useStore();
-
-            return userStore.refreshToken().then(() => {
-                processQueue();
-                response.config.headers['Authorization'] = `Bearer ${userStore.token}`;
-                return service(response.config);
-            }).catch((refreshError) => {
-                processQueue();
-                userStore.logout();
-                return Promise.reject(refreshError);
-            }).finally(() => {
-                isRefreshing = false;
-            });
+        // 应对情况 A：HTTP 状态码是 200，但业务状态码(code)是 401/403
+        if (String(code) === '401' || String(code) === '403') {
+            const userStore = useUserStore();
+            userStore.logout();
         }
+
         return Promise.reject(new Error(message || 'Server Error'));
     },
     (error) => {
+        // 应对情况 B：HTTP 状态码就是真正的 401 或 403（你的情况）
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+            return handleUnauthorized(error.config);
+        }
+
         const msg = error.response?.data?.message || '网络通讯异常';
         return Promise.reject(new Error(msg));
     }

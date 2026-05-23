@@ -1,11 +1,11 @@
 import { ref } from 'vue';
-import { useStore } from '@/store/userStore';
+import { useUserStore } from '@/store/userStore';
 import type { LoginParams, MailLoginParams, RegisterParams, ChangePasswordParams } from '@/api/types';
 
 export type AuthMode = 'login' | 'register' | 'change' | 'mail';
 
 export function useAuth() {
-  const userStore = useStore();
+  const userStore = useUserStore();
   
   const loading = ref(false);
   const errorMsg = ref('');

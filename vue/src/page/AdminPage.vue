@@ -92,6 +92,9 @@
         </div>
       </div>
     </HoloPanel>
+
+    <!-- 登录弹窗 -->
+    <LoginModal v-if="showLoginModal" @success="onLoginSuccess" />
   </div>
 </template>
 
@@ -99,13 +102,16 @@
 import { ref, reactive, onMounted } from 'vue';
 import { api } from '@/api';
 import type { PostingResponse, PostingStatus } from '@/api/types';
+import { useAuthCheck } from '@/composables/useAuthCheck';
 import HoloPanel from '@/components/holo/HoloPanel.vue';
 import HoloBorder from '@/components/holo/HoloBorder.vue';
 import HoloText from '@/components/holo/HoloText.vue';
 import HoloInput from '@/components/holo/HoloInput.vue';
 import OceanButton from '@/components/ocean/OceanButton.vue';
 import OceanState from '@/components/ocean/OceanState.vue';
+import LoginModal from '@/components/login/LoginModal.vue';
 
+const { showLoginModal, checkAuth, onLoginSuccess } = useAuthCheck();
 const isAdminLoggedIn = ref(false);
 const activeTab = ref<'review' | 'columns'>('review');
 const reviewStatus = ref<PostingStatus>('PENDING');
@@ -189,6 +195,6 @@ const deleteColumn = async (id: number) => {
 };
 
 onMounted(() => {
-  // Check if already logged in as admin
+  checkAuth();
 });
 </script>

@@ -1,13 +1,16 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import { useStore } from '@/store/userStore';
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
+      {
+        path: '/',
+        redirect: '/game',
+      },
     {
-      path: '/',
-      name: 'Home',
-      component: () => import('@/components/SystemBoot.vue'),
+      path: '/game',
+      name: 'Game',
+      component: () => import('@/page/GamePage.vue'),
     },
     {
       path: '/post/:id',
@@ -35,17 +38,6 @@ const router = createRouter({
       component: () => import('@/page/AboutPage.vue'),
     },
   ],
-});
-
-const authRoutes = ['Post', 'Admin'];
-
-router.beforeEach((to) => {
-  if (authRoutes.includes(to.name as string)) {
-    const userStore = useStore();
-    if (!userStore.isLoggedIn) {
-      return { name: 'Home' };
-    }
-  }
 });
 
 export default router;

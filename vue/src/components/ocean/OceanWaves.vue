@@ -20,6 +20,12 @@ const props = withDefaults(defineProps<{
   gradientColors?: string[];
   /** 波浪填充深度 (px)，0=填满到底部 */
   fillDepth?: number;
+  /** 仅绘制波浪线条，不填充区域 */
+  strokeOnly?: boolean;
+  /** strokeOnly 模式下线条颜色 */
+  strokeColor?: string;
+  /** strokeOnly 模式下线条宽度 */
+  strokeWidth?: number;
 }>(), {
   layers: () => [
     { color: '#0a1628', amplitude: 30, frequency: 0.008, speed: 0.02, offsetY: 0, opacity: 1, jitter: 0 },
@@ -35,6 +41,9 @@ const props = withDefaults(defineProps<{
   waveSpeed: 0.03,
   gradientColors: () => ['#0a2a4a', '#0d4b6e', '#1a7a8a'],
   fillDepth: 0,
+  strokeOnly: false,
+  strokeColor: '#4df0ff',
+  strokeWidth: 2,
 });
 
 const emit = defineEmits<{
@@ -100,17 +109,43 @@ function resizeCanvas() {
   canvas.style.height = `${canvasHeight}px`;
 }
 
-function drawWave(layer: WaveLayer, layerIndex: number, fillBottom: number) {
-  if (!ctx) return;
-
+function getWavePoints(layer: WaveLayer, layerIndex: number): { x: number; y: number }[] {
   const baseY = canvasHeight * currentBaseYRatio + layer.offsetY;
   const step = 2;
-
   const points: { x: number; y: number }[] = [];
   for (let x = 0; x <= canvasWidth; x += step) {
     const jo = getJitterOffset(layerIndex, x);
     points.push({ x, y: baseY + waveY(x, layer, jo) });
   }
+  return points;
+}
+
+function drawWaveStroke(layer: WaveLayer, layerIndex: number) {
+  if (!ctx) return;
+  const points = getWavePoints(layer, layerIndex);
+
+  ctx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const next = points[i + 1];
+    if (next) {
+      const midX = (p.x + next.x) / 2;
+      const midY = (p.y + next.y) / 2;
+      ctx.quadraticCurveTo(p.x, p.y, midX, midY);
+    } else {
+      ctx.lineTo(p.x, p.y);
+    }
+  }
+
+  ctx.globalAlpha = layer.opacity;
+  ctx.strokeStyle = props.strokeColor;
+  ctx.lineWidth = props.strokeWidth;
+  ctx.stroke();
+}
+
+function drawWave(layer: WaveLayer, layerIndex: number, fillBottom: number) {
+  if (!ctx) return;
+  const points = getWavePoints(layer, layerIndex);
 
   ctx.beginPath();
   ctx.moveTo(0, fillBottom);
@@ -165,20 +200,27 @@ function animate() {
 
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-  // 计算统一的填充底部（基于最浅层 layer 0）
-  const shallowest = props.layers[0];
-  const shallowBaseY = canvasHeight * currentBaseYRatio + (shallowest?.offsetY ?? 0);
-  const maxWaveH = (shallowest?.amplitude ?? 0) * 1.9;
-  const fillBottom = props.fillDepth > 0
-    ? shallowBaseY + maxWaveH + props.fillDepth
-    : canvasHeight;
+  if (props.strokeOnly) {
+    // 仅绘制波浪线条
+    for (let i = props.layers.length - 1; i >= 0; i--) {
+      drawWaveStroke(props.layers[i], i);
+    }
+  } else {
+    // 计算统一的填充底部（基于最浅层 layer 0）
+    const shallowest = props.layers[0];
+    const shallowBaseY = canvasHeight * currentBaseYRatio + (shallowest?.offsetY ?? 0);
+    const maxWaveH = (shallowest?.amplitude ?? 0) * 1.9;
+    const fillBottom = props.fillDepth > 0
+      ? shallowBaseY + maxWaveH + props.fillDepth
+      : canvasHeight;
 
-  // 从后往前画各层波浪（覆盖渐变顶部）
-  for (let i = props.layers.length - 1; i >= 0; i--) {
-    drawWave(props.layers[i], i, fillBottom);
+    // 从后往前画各层波浪（覆盖渐变顶部）
+    for (let i = props.layers.length - 1; i >= 0; i--) {
+      drawWave(props.layers[i], i, fillBottom);
+    }
+    // 画海洋渐变背景（从波浪填充底部开始）
+    drawOceanGradient(fillBottom - 2);
   }
-  // 画海洋渐变背景（从波浪填充底部开始）
-  drawOceanGradient(fillBottom-2);
 
   phase++;
   animationId = requestAnimationFrame(animate);

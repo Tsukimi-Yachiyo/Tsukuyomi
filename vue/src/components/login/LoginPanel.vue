@@ -166,7 +166,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
-import { useStore } from '@/store/userStore';
+import { useUserStore } from '@/store/userStore';
 import { useCountdown } from '@/composables/useCountdown';
 import HoloPanel from '@/components/holo/HoloPanel.vue';
 import HoloBorder from '@/components/holo/HoloBorder.vue';
@@ -179,7 +179,11 @@ import CaptchaDialog from '@/components/login/CaptchaDialog.vue';
 import avatarSrc from '@/assets/icons/yachiyo-tsukimi-v3.svg';
 import {eventBus} from "@/utils/eventBus";
 
-const userStore = useStore();
+const emit = defineEmits<{
+  success: [];
+}>();
+
+const userStore = useUserStore();
 const animKey = ref(0);
 const showCaptcha = ref(false);
 const currentCaptchaContext = ref<'register' | 'forgot' | null>(null);
@@ -242,6 +246,7 @@ const handleCaptchaCancel = () => {
 const handlePasswordLogin = async () => {
   try {
     await userStore.login(loginForm.email, loginForm.password);
+    emit('success');
   } catch (error) {
     eventBus.emit('vue:show-message', { text: '登录失败，请检查邮箱和密码', type: 'error' });
   }
@@ -250,6 +255,7 @@ const handlePasswordLogin = async () => {
 const handleEmailLogin = async () => {
   try {
     await userStore.loginByMail({ email: emailLoginForm.email, code: emailLoginForm.code });
+    emit('success');
   } catch (error) {
     eventBus.emit('vue:show-message', { text: '登录失败，请检查邮箱和验证码', type: 'error' });
   }
@@ -268,6 +274,7 @@ const handleRegister = async () => {
       password: registerForm.password,
     });
     await userStore.login(registerForm.email, registerForm.password);
+    emit('success');
   } catch (error) {
     eventBus.emit('vue:show-message', { text: '注册失败，请重试', type: 'error' });
   }
