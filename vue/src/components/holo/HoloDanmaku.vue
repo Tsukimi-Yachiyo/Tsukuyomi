@@ -1,13 +1,13 @@
 <template>
-  <div class="danmaku-container">
-    <div class="danmaku-stack">
+  <div class="danmaku-container fixed top-5 right-5 pointer-events-none z-[99999]">
+    <div class="danmaku-stack flex flex-col gap-2.5">
       <div
         v-for="msg in messages"
         :key="msg.id"
-        class="danmaku-item"
+        class="danmaku-item opacity-0 translate-x-[100px] scale-[0.8] transition-all duration-300"
         :class="['type-' + msg.type, { 'is-visible': msg.visible }]"
       >
-        <div class="danmaku-panel" :style="getPanelStyle(msg.type)">
+        <div class="danmaku-panel relative bg-[rgba(0,15,25,0.7)] backdrop-blur-md p-3 px-6 flex items-center gap-2" :style="getPanelStyle(msg.type)">
           <HoloBorder
             :anim="[0, 0.3]"
             :layers="[
@@ -18,9 +18,9 @@
             :corner-size="40"
             :show-notches="false"
           />
-          <span class="danmaku-bracket">[</span>
-          <span class="danmaku-text">{{ msg.text }}</span>
-          <span class="danmaku-bracket">]</span>
+          <span class="danmaku-bracket opacity-60 text-lg font-['Courier_New',Courier,monospace]">[</span>
+          <span class="danmaku-text text-base font-['Courier_New',Courier,monospace] font-bold">{{ msg.text }}</span>
+          <span class="danmaku-bracket opacity-60 text-lg font-['Courier_New',Courier,monospace]">]</span>
         </div>
       </div>
     </div>
@@ -100,54 +100,11 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.danmaku-container {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  pointer-events: none;
-  z-index: 99999;
-}
-
-.danmaku-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.danmaku-item {
-  opacity: 0;
-  transform: translateX(100px) scale(0.8);
-  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
 .danmaku-item.is-visible {
   opacity: 1;
   transform: translateX(0) scale(1);
 }
 
-.danmaku-panel {
-  position: relative;
-  background: rgba(0, 15, 25, 0.7);
-  backdrop-filter: blur(6px);
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.danmaku-bracket {
-  opacity: 0.6;
-  font-size: 18px;
-  font-family: 'Courier New', Courier, monospace;
-}
-
-.danmaku-text {
-  font-size: 16px;
-  font-family: 'Courier New', Courier, monospace;
-  font-weight: bold;
-}
-
-/* 各类弹幕专属颜色与发光特效 */
 .type-success .danmaku-text {
   color: #4df0ff;
   text-shadow: 0 0 10px #4df0ff;

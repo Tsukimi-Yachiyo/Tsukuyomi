@@ -1,7 +1,25 @@
+/* 全局禁止文字选择，防止UI元素被意外选中 */
+* {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 允许输入框、文本区域等可编辑元素选中文字 */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* 自定义像素字体 */
 @font-face {
   font-family: 'PixelFont';
   src: url('@/assets/font/AaHMKJXST.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cuxi';
+  src: url('@/assets/font/zihun41hao-cuxiti.woff2') format('woff2');
   font-display: swap;
 }
 
@@ -16,6 +34,8 @@
   --line-dur: 1s;
   /* 像素字体 */
   --font-holo: 'PixelFont', 'Courier New', monospace;
+  /* 剑体字体 */
+  --font-cuxi: 'Cuxi', sans-serif;
 }
 
 /* 组件共用的 @keyframes */

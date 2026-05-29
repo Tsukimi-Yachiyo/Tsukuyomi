@@ -4,7 +4,6 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
-import postCssPxToRem from 'postcss-pxtorem'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -18,19 +17,11 @@ export default defineConfig(({ mode }) => {
       vueDevTools(),
       tailwindcss(),
     ],
-    css: {
-      postcss: {
-        plugins: [
-          postCssPxToRem({
-            rootValue: 16, // 视你的设计稿而定，160px -> 16
-            propList: ['*'],
-          }),
-        ],
-      },
-    },
     resolve: {
       alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url))
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+        '@live2d-framework': fileURLToPath(new URL('./public/live2d-framework', import.meta.url)),
+        '@live2d': fileURLToPath(new URL('./src/live2d', import.meta.url)),
       },
     },
     server: {
@@ -48,10 +39,6 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path,
         },
         '/file': {
-          target: proxyTarget,
-          changeOrigin: true,
-        },
-        '/actuator': {
           target: proxyTarget,
           changeOrigin: true,
         },

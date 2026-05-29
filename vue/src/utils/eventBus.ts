@@ -8,6 +8,7 @@ export type RootEvents = {
 
     // 全局弹幕消息事件
     'vue:show-message': { text: string; type?: 'success' | 'error' | 'warning' | 'info' };
+    'vue:show-user-profile': { userId: number };
 
     // Cocos 发送给 Vue 的事件 (以 cocos: 开头)
     'cocos:trigger-ui': { uiType: 'store' | 'profile' | 'document'; data?: any };
@@ -28,6 +29,13 @@ export type RootEvents = {
     'network:send-player-move': any;
     'network:send-chat': any;
     'network:send-block-interaction': any;
+
+    // Chat WebSocket 事件
+    'chat:connected': void;
+    'chat:disconnected': { code: number; reason: string };
+    'chat:error': any;
+    'chat:send-message': { fromId: number; toId: number; toType: number; message: string };
+    'chat:received': any;
 };
 
 export const eventBus = mitt<RootEvents>();

@@ -1,7 +1,7 @@
 <template>
-  <div class="modal-overlay" :style="overlayStyle">
+  <div class="fixed inset-0 z-[9999] flex items-center justify-center" :style="overlayStyle">
     <div
-        class="modal-content"
+        class="pointer-events-auto"
         @mouseenter="hovering = true"
         @mouseleave="hovering = false"
     >
@@ -26,20 +26,3 @@ const overlayStyle = computed(() => ({
   transition: 'background 0.3s, backdrop-filter 0.3s'
 }))
 </script>
-
-<style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
-  /* 初始背景与模糊已在 JS 中动态控制，此处可省略或作为后备 */
-}
-
-.modal-content {
-  pointer-events: auto;
-}
-</style>

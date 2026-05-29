@@ -4,7 +4,7 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "strict": true,
+    "strict": false,
     "jsx": "preserve",
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -15,9 +15,12 @@
     "types": ["vite/client"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@live2d-framework/*": ["./public/live2d-framework/*"],
+      "@live2d/*": ["./src/live2d/*"]
     },
     "ignoreDeprecations": "6.0"
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue", "public/live2d-core/*.d.ts", "public/live2d-framework/**/*.ts"],
+  "exclude": ["node_modules", "dist", "public/live2d-framework/**/*.min.js", "src/live2d"]
 }

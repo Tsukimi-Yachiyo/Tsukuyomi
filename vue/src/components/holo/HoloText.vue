@@ -1,5 +1,5 @@
 <template>
-  <div class="holo-text" :class="{ 'is-secondary': secondary }" :style="textStyle">
+  <div class="holo-text m-0 tracking-[2px] leading-[1.2] whitespace-pre-wrap" :class="{ 'is-secondary': secondary }" :style="textStyle">
     <template v-if="text && anim">
       <span
         v-for="(char, index) in text.split('')"
@@ -42,10 +42,6 @@ const textStyle = computed(() => ({
 .holo-text {
   color: var(--theme-color);
   text-shadow: 0 0 8px var(--theme-color-glow);
-  letter-spacing: 2px;
-  margin: 0;
-  line-height: 1.2;
-  white-space: pre-wrap;
   font-family: var(--font-holo);
 }
 

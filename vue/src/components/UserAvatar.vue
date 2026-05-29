@@ -1,13 +1,13 @@
 <template>
   <div
-    class="rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 bg-cyan-400/15"
+    class="rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-cyan-400/15"
     :class="[sizeClass, clickable ? 'cursor-pointer hover:ring-2 hover:ring-cyan-400/40 transition-all' : '']"
     @click="handleClick"
   >
     <img
-      v-if="avatarUrl && !imgError"
-      :src="avatarUrl"
-      :alt="username || '用户头像'"
+      v-if="displayAvatar && !imgError"
+      :src="displayAvatar"
+      :alt="displayName || '用户头像'"
       class="w-full h-full object-cover"
       loading="lazy"
       @error="imgError = true"
@@ -19,8 +19,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import {ref, computed, watch} from 'vue';
+import api from "@/api";
+import {UserDetailDTO} from "@/api/types";
+import { useModal } from '@/composables/useModal';
+import HoloUserProfile from '@/components/holo/HoloUserProfile.vue';
+
+const { addModal } = useModal();
 
 const props = withDefaults(defineProps<{
   userId: number;
@@ -34,8 +39,25 @@ const props = withDefaults(defineProps<{
   size: 'md',
   clickable: true,
 });
+const fetchedDetail = ref<UserDetailDTO | null>(null);
 
-const router = useRouter();
+const needFetch = computed(() => !props.avatarUrl && !props.username);
+
+watch(
+    [() => props.userId, needFetch],
+    async ([id, shouldFetch]) => {
+      if (shouldFetch) {
+        fetchedDetail.value = await api.user.getDetail('POSTER', id);
+      } else {
+        fetchedDetail.value = null;
+      }
+    },
+    { immediate: true }
+);
+
+const displayAvatar = computed(() => props.avatarUrl || fetchedDetail.value?.userAvatar || '');
+const displayName = computed(() => props.username || fetchedDetail.value?.userName || '');
+
 const imgError = ref(false);
 
 const sizeClass = computed(() => ({
@@ -56,7 +78,11 @@ const placeholder = computed(() =>
 
 function handleClick() {
   if (props.clickable && props.userId) {
-    router.push(`/user-profile/${props.userId}`);
+    addModal({
+      type: 'function',
+      component: HoloUserProfile,
+      props: { userId: props.userId, userInfo: fetchedDetail.value, isSelf: false },
+    });
   }
 }
 </script>

@@ -1,5 +1,5 @@
 <template>
-  <canvas ref="canvasRef" class="ocean-bubbles" />
+  <canvas ref="canvasRef" class="block pointer-events-none" />
 </template>
 
 <script setup lang="ts">
@@ -187,10 +187,3 @@ onUnmounted(() => {
 watch(() => props.width, resizeCanvas);
 watch(() => props.height, resizeCanvas);
 </script>
-
-<style scoped>
-.ocean-bubbles {
-  display: block;
-  pointer-events: none;
-}
-</style>

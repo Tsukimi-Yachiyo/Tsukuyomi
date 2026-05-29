@@ -4,7 +4,11 @@
       <span class="text-sm text-slate-400 font-sans">系统初始化中...</span>
     </div>
   </div>
-  <slot v-else />
+  <template v-else>
+    <ModalProvider />
+    <MessageToast />
+    <slot />
+  </template>
 </template>
 
 <script setup lang="ts">
@@ -12,20 +16,21 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/store/userStore';
 import { checkBackendHealth } from '@/core/bootstrap';
+import ModalProvider from '@/components/global/ModalProvider.vue';
+import MessageToast from '@/components/global/MessageToast.vue';
 
 const router = useRouter();
 const userStore = useUserStore();
 const isChecking = ref(true);
 
 onMounted(async () => {
-  // 1. 后端健康检查
   const healthy = await checkBackendHealth();
   if (!healthy) {
+    isChecking.value = false;
     router.push('/maintenance');
     return;
   }
 
-  // 2. 恢复用户会话（如果有 token）
   if (userStore.token) {
     await userStore.validateAndRestoreSession();
   }

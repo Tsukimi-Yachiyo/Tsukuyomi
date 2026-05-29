@@ -1,9 +1,9 @@
 <template>
-  <div class="holo-avatar">
+  <div class="holo-avatar w-full h-full flex items-center justify-center">
     <svg
       v-if="!src"
       viewBox="0 0 100 100"
-      class="avatar-svg"
+      class="avatar-svg w-full h-full fill-transparent stroke-2.5"
     >
       <circle
         cx="50"
@@ -24,7 +24,7 @@
       <circle cx="62" cy="48" r="4" fill="var(--theme-color)" />
       <path d="M 45 58 Q 50 64 55 58" fill="none" stroke-linecap="round" stroke="var(--theme-color)" stroke-width="2.5" />
     </svg>
-    <img v-else :src="src" class="avatar-img" alt="avatar" />
+    <img v-else :src="src" class="avatar-img w-[80%] h-[80%] object-contain border-2 border-solid p-1" alt="avatar" />
   </div>
 </template>
 
@@ -41,20 +41,8 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <style scoped>
-.holo-avatar {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .avatar-svg {
-  width: 100%;
-  height: 100%;
-  fill: transparent;
   stroke: var(--theme-color);
-  stroke-width: 2.5;
   filter: drop-shadow(0 0 4px var(--theme-color));
 }
 
@@ -69,12 +57,8 @@ withDefaults(defineProps<Props>(), {
 }
 
 .avatar-img {
-  width: 80%;
-  height: 80%;
-  object-fit: contain;
-  border: 2px solid var(--theme-color);
+  border-color: var(--theme-color);
   box-shadow: 0 0 10px var(--theme-color-glow), inset 0 0 10px var(--theme-color-glow);
-  padding: 4px;
 }
 
 @keyframes spinRing {

@@ -1,5 +1,5 @@
 <template>
-  <canvas ref="canvasRef" class="ocean-fish" />
+  <canvas ref="canvasRef" class="block" />
 </template>
 
 <script setup lang="ts">
@@ -188,9 +188,3 @@ watch(() => props.width, resizeCanvas);
 watch(() => props.height, resizeCanvas);
 watch(() => props.count, initFishes);
 </script>
-
-<style scoped>
-.ocean-fish {
-  display: block;
-}
-</style>

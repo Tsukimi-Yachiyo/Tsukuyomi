@@ -131,7 +131,9 @@ tsukuyomi/
 │   ├── 05-2.1-layout-adjust.md
 │   ├── 06-2.1-后端服务检测功能.md
 │   ├── 07-2.1-全息UI组件化与登录界面重构.md
-│   └── 08-2.1-system-boot-initialization.md
+│   ├── 08-2.1-system-boot-initialization.md
+│   ├── 09-2.2-modal-system-refactor.md
+│   └── 手动补充项目文档.md
 │
 ├── .cursorrules                  # Cursor 规则
 ├── .env.development              # 开发环境变量

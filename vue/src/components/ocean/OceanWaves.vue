@@ -1,5 +1,5 @@
 <template>
-  <canvas ref="canvasRef" class="ocean-waves" />
+  <canvas ref="canvasRef" class="block" />
 </template>
 
 <script setup lang="ts">
@@ -245,9 +245,3 @@ onUnmounted(() => {
 watch(() => props.width, resizeCanvas);
 watch(() => props.height, resizeCanvas);
 </script>
-
-<style scoped>
-.ocean-waves {
-  display: block;
-}
-</style>

@@ -17,6 +17,7 @@
   <!-- 游戏 2D UI 层 -->
   <GameUI
       :paused="isPaused"
+      :chat-open="isChatOpen"
       @chat="onChatClick"
       @home="onHomeClick"
       @pause-hover="onPauseHover"
@@ -40,10 +41,12 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { sendToCocos, initCocosBridge, setCocosIframe } from '@/bridge/cocosBridge';
 import { eventBus } from '@/utils/eventBus';
 import { useUserStore } from '@/store/userStore';
+import { addModal } from '@/store/modalStore';
 import GameUI from '@/components/game/GameUI.vue';
 import KeyboardHints from '@/components/game/KeyboardHints.vue';
 import PauseMoon from '@/components/game/PauseMoon.vue';
 import UserInfoPause from "@/components/game/UserInfoPause.vue";
+import ChatDialog from '@/components/game/ChatDialog.vue';
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const cocosIframe = ref<HTMLIFrameElement | null>(null);
@@ -55,10 +58,21 @@ const initTimeoutRef = ref<number | null>(null);
 const isPaused = ref(false);
 const isPauseHovered = ref(false);
 const pauseBtnRect = ref<DOMRect | null>(null);
+const chatModalId = ref<string | null>(null);
+const isChatOpen = ref(false);
 
 const onChatClick = () => {
-  // TODO: 打开聊天面板
-  console.log('[CocosContainer] Chat button clicked');
+  if (chatModalId.value) return;
+  chatModalId.value = addModal({
+    type: 'function',
+    component: ChatDialog,
+    closable: true,
+    onClosed: () => {
+      chatModalId.value = null;
+      isChatOpen.value = false;
+    },
+  });
+  isChatOpen.value = true;
 };
 
 const onHomeClick = () => {

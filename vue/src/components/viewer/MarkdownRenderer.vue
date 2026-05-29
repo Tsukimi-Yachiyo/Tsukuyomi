@@ -8,7 +8,7 @@ const props = defineProps<{
 }>()
 
 const md: MarkdownIt = new MarkdownIt({
-  html: false,
+  html: true,
   linkify: true,
   typographer: true,
   highlight(str: string, lang: string) {
@@ -23,7 +23,29 @@ const md: MarkdownIt = new MarkdownIt({
   }
 })
 
-const rendered = computed(() => md.render(props.content))
+md.renderer.rules.media_placeholder = function(tokens: any[], idx: number) {
+  return tokens[idx].content
+}
+
+function renderMediaTags(text: string): string {
+  return text.replace(/\{\{media:([^}]+)\}\}/g, (_match, fileName) => {
+    const ext = fileName.split('.').pop()?.toLowerCase() || ''
+    const mediaSrc = `/file/public?fileName=${encodeURIComponent(fileName)}`
+
+    if (['mp4', 'webm', 'ogg'].includes(ext)) {
+      return `<video controls preload="metadata" class="max-w-full rounded-lg"><source src="${mediaSrc}" type="video/${ext}">您的浏览器不支持视频播放</video>`
+    }
+    if (['mp3', 'wav', 'aac'].includes(ext)) {
+      return `<audio controls preload="metadata" class="w-full"><source src="${mediaSrc}" type="audio/${ext}">您的浏览器不支持音频播放</audio>`
+    }
+    return `<img src="${mediaSrc}" alt="${fileName}" class="max-w-full rounded-lg" loading="lazy" />`
+  })
+}
+
+const rendered = computed(() => {
+  const html = md.render(props.content)
+  return renderMediaTags(html)
+})
 </script>
 
 <template>

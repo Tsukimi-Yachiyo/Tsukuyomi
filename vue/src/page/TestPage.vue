@@ -144,6 +144,18 @@
         请输入 PDF 文件名或 URL
       </div>
     </section>
+
+    <section class="mb-10">
+      <h2 class="text-base mb-3 text-white/60">Oceanolo Post Card</h2>
+      <div class="border border-white/10 rounded-lg bg-[#0a1628]">
+        <OceanPostCard
+            :cover-image="'https://img0.baidu.com/it/u=2553302922,1577729704&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=785'"
+            :author-id="1"
+            :post-id="1"
+            title="这里填写标题内容111111111111111123121241241231"
+        />
+      </div>
+    </section>
   </div>
 </template>
 
@@ -156,6 +168,7 @@ import OceanFish from '@/components/ocean/OceanFish.vue';
 import PdfViewer from '@/components/viewer/PdfViewer.vue';
 import OceanLoading from '@/components/ocean/OceanLoading.vue';
 import OceanBubbles from "@/components/ocean/OceanBubbles.vue";
+import OceanPostCard from "@/components/ocean/OceanPostCard.vue";
 
 const wavesRef = ref<InstanceType<typeof OceanWaves>>();
 const waveY = ref(0);

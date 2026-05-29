@@ -71,6 +71,21 @@ service.interceptors.response.use(
             return response.data;
         }
 
+        if (!response.data) {
+            return Promise.reject(new Error('Server Error'));
+        }
+        // 如果相应数据为列表, 返回列表
+        if (Array.isArray(response.data)) {
+            let dataList: any[] = [];
+            for (let i = 0, len = response.data.length; i < len; i++) {
+                const item = response.data[i];
+                if (item.code !== 200 && item.code !== 0 && String(item.code) !== '200') {
+                    return Promise.reject(new Error(item.message || 'Server Error'));
+                }
+                dataList.push(item.data);
+            }
+            return dataList;
+        }
         const { code, data, message } = response.data;
 
         if (code === 200 || code === 0 || String(code) === '200') {
@@ -140,11 +155,11 @@ export const api = {
         search: (userName: string, pageNum: number, pageSize: number): Promise<T.UserDetailDTO[]> =>
             service.post('/api/v2/user/search', null, { params: { userName, pageNum, pageSize } }),
 
-        getFollowees: (): Promise<number[]> =>
-            service.get('/api/v2/user/followee'),
+        getFollowees: (userId?: number): Promise<number[]> =>
+            service.get('/api/v2/user/followee', { params: userId !== undefined ? { userId } : undefined }),
 
-        getFollowers: (): Promise<number[]> =>
-            service.get('/api/v2/user/follower'),
+        getFollowers: (userId?: number): Promise<number[]> =>
+            service.get('/api/v2/user/follower', { params: userId !== undefined ? { userId } : undefined }),
 
         follow: (followeeId: number): Promise<boolean> =>
             service.post('/api/v2/user/follow', null, { params: { followeeId } }),
@@ -270,6 +285,14 @@ export const api = {
     file: {
         downloadPublic: (fileName: string, bucket?: string): Promise<Blob> =>
             service.get('/file/public', { params: { fileName, bucket }, responseType: 'blob' }),
+    },
+
+    chat: {
+        getFriends: (): Promise<number[]> =>
+            service.get('/api/v2/chat/friend'),
+
+        getMessages: (friendId: number, before?: string): Promise<T.ChatMessageDTO[]> =>
+            service.get('/api/v2/chat/messages', { params: { friendId, before } }),
     }
 };
 

@@ -57,14 +57,14 @@
 
             <OceanState v-if="loading" type="loading" />
             <OceanState v-else-if="postings.length === 0" type="empty" text="暂无帖子" />
-            <div v-else class="flex flex-col gap-2.5">
-              <div v-for="posting in postings" :key="posting.id" class="flex justify-between items-center p-4 bg-black/40 border border-white/10 rounded-lg">
+            <div v-else class="flex flex-col gap-2.5 max-h-[50vh] overflow-y-auto pr-1 custom-scrollbar">
+              <div v-for="posting in postings" :key="posting.id" class="flex justify-between items-center p-4 bg-black/40 border border-white/10 rounded-lg cursor-pointer hover:border-[rgba(77,240,255,0.3)] transition-colors" @click="openPost(posting.id)">
                 <div class="flex flex-col gap-1">
                   <HoloText :text="posting.title || 'Untitled'" size="14px" weight="bold" />
                   <HoloText :text="`ID: ${posting.id}`" size="10px" secondary />
                   <HoloText :text="`状态: ${posting.status}`" size="10px" secondary />
                 </div>
-                <div class="flex gap-2">
+                <div class="flex gap-2" @click.stop>
                   <OceanButton variant="success" size="sm" @click="reviewPost(posting.id, 'APPROVE')">通过</OceanButton>
                   <OceanButton variant="warning" size="sm" @click="reviewPost(posting.id, 'REJECT')">拒绝</OceanButton>
                   <OceanButton variant="danger" size="sm" @click="reviewPost(posting.id, 'DELETE')">删除</OceanButton>
@@ -93,8 +93,6 @@
       </div>
     </HoloPanel>
 
-    <!-- 登录弹窗 -->
-    <LoginModal v-if="showLoginModal" @success="onLoginSuccess" />
   </div>
 </template>
 
@@ -110,8 +108,8 @@ import HoloInput from '@/components/holo/HoloInput.vue';
 import OceanButton from '@/components/ocean/OceanButton.vue';
 import OceanState from '@/components/ocean/OceanState.vue';
 import LoginModal from '@/components/login/LoginModal.vue';
+import {useUserStore} from "@/store/userStore";
 
-const { showLoginModal, checkAuth, onLoginSuccess } = useAuthCheck();
 const isAdminLoggedIn = ref(false);
 const activeTab = ref<'review' | 'columns'>('review');
 const reviewStatus = ref<PostingStatus>('PENDING');
@@ -146,9 +144,9 @@ const statusList = [
 
 const handleAdminLogin = async () => {
   try {
-    await api.admin.login(adminLogin.username, adminLogin.password);
+    useUserStore().token = await api.admin.login(adminLogin.username, adminLogin.password);
     isAdminLoggedIn.value = true;
-    loadPostings('PENDING');
+    await loadPostings('PENDING');
   } catch {}
 };
 
@@ -194,7 +192,23 @@ const deleteColumn = async (id: number) => {
   } catch {}
 };
 
-onMounted(() => {
-  checkAuth();
-});
+const openPost = (id: number) => {
+  window.open(`/#/post/${id}`, '_blank');
+};
 </script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 107, 0.2);
+  border-radius: 2px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 107, 107, 0.4);
+}
+</style>

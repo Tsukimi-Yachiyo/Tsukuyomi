@@ -15,7 +15,17 @@ const router = createRouter({
     {
       path: '/post/:id',
       name: 'Post',
-      component: () => import('@/page/PostPage.vue'),
+      component: () => import('@/page/PostViewPage.vue'),
+    },
+    {
+      path: '/post/new',
+      name: 'PostEditor',
+      component: () => import('@/page/PostEditorPage.vue'),
+    },
+    {
+      path: '/post/edit/:id',
+      name: 'PostEditorEdit',
+      component: () => import('@/page/PostEditorPage.vue'),
     },
     {
       path: '/admin',
@@ -31,6 +41,11 @@ const router = createRouter({
       path: '/test',
       name: 'Test',
       component: () => import('@/page/TestPage.vue'),
+    },
+    {
+      path: '/user/:id',
+      name: 'User',
+      component: () => import('@/page/UserPage.vue'),
     },
     {
       path: '/about',

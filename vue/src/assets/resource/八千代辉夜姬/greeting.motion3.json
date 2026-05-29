@@ -1,0 +1,72 @@
+{
+  "sequence_name": "Enter_Greet_Jump_Idle",
+  "metadata": {
+    "description": "人物从左边出现，眯眼打招呼，跳跃到右边一步，然后站立",
+    "version": "1.0"
+  },
+  "timeline": [
+    {
+      "step": 1,
+      "time_start_sec": 0.0,
+      "action": "move",
+      "description": "从屏幕左侧外部平滑移动到左侧位置",
+      "details": {
+        "position_x": { "start": -100, "end": -25 },
+        "position_y": { "start": 0, "end": 0 },
+        "duration_sec": 1.0,
+        "easing": "easeOutCubic"
+      }
+    },
+    {
+      "step": 2,
+      "time_start_sec": 1.0,
+      "action": "play_motion_and_expression",
+      "description": "眯眼、微笑并播放打招呼动作",
+      "details": {
+        "motion_group": "Greeting",
+        "motion_index": 0,
+        "duration_sec": 2.0,
+        "override_parameters": {
+          "ParamEyeLOpen": 0.0,
+          "ParamEyeROpen": 0.0,
+          "ParamEyeSmile": 1.0,
+          "ParamMouthForm": 1.0,
+          "ParamMouthOpenY": 0.5
+        }
+      }
+    },
+    {
+      "step": 3,
+      "time_start_sec": 3.0,
+      "action": "jump",
+      "description": "向右跳跃一步的距离",
+      "details": {
+        "position_x": { "start": -25, "end": 10 },
+        "position_y": { 
+          "start": 0, 
+          "peak": 15, 
+          "end": 0 
+        },
+        "duration_sec": 0.4,
+        "easing": "easeInOutQuad"
+      }
+    },
+    {
+      "step": 4,
+      "time_start_sec": 3.4,
+      "action": "idle",
+      "description": "重置表情参数，恢复平稳站立状态",
+      "details": {
+        "motion_group": "Idle",
+        "motion_index": 0,
+        "restore_parameters": {
+          "ParamEyeLOpen": 1.0,
+          "ParamEyeROpen": 1.0,
+          "ParamEyeSmile": 0.0,
+          "ParamMouthForm": 0.0,
+          "ParamMouthOpenY": 0.0
+        }
+      }
+    }
+  ]
+}

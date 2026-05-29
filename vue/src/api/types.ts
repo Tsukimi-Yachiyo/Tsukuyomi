@@ -52,7 +52,21 @@ export interface UserDetailDTO {
     isFollowed: boolean;
 }
 
-export type UserDetailType = 'SELF' | 'BASIC' | 'FULL';
+export interface FollowerInfo {
+    userId: number;
+    userName: string;
+    userAvatar: string;
+    isFollowing: boolean;
+    isFollowed: boolean;
+}
+
+// SELF 包含用户的所有独立消息字段
+// POSTER 包含用户的基本信息和头像
+// SEARCH 包含用户的基本信息、头像、关注者数量和关注数量
+// FOLLOW 包含关注和被关注
+// PUBLIC 包含用户的介绍、城市和性别
+// FRIEND 包含用户的基本信息、头像、介绍、城市、性别、手机号和出生日期
+export type UserDetailType = 'PUBLIC' | 'FOLLOW' | 'SEARCH' | 'FRIEND' | 'POSTER' | 'SELF' | 'NAME' | 'INTRODUCTION' | 'CITY' | 'GENDER' | 'PHONE' | 'USER_QQ' | 'BIRTHDAY' | 'AVATAR' | 'FOLLOWER_COUNT' | 'FOLLOWEE_COUNT' | 'IS_FOLLOWED' | 'IS_FOLLOWING';
 
 // ==========================================
 // 3. ContentService (内容服务) 相关
@@ -65,6 +79,7 @@ export interface PostDetailDTO {
 }
 
 export interface PostEncapsulateDTO {
+    postingId: number;
     title: string;
     posterId: number;
     coverImage: string;
@@ -105,6 +120,7 @@ export interface CommentResponse {
     id: number;
     userId: number;
     content: string;
+    isSelf: boolean;
 }
 
 export type InteractionType = 'LIKE' | 'COLLECTION' | 'COIN';
@@ -171,3 +187,20 @@ export interface AddColumnRequest {
 export type ReviewAction = 'APPROVE' | 'REJECT' | 'DELETE';
 export type PostingStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 export type EssayType = 'SIMPLE' | 'NOVEL' | 'ACTIVITY';
+
+// ==========================================
+// 7. Chat Service (聊天服务) 相关
+// ==========================================
+
+export interface ChatMessageDTO {
+    message: string;
+    fromUserId: number;
+    createTime: string;
+}
+
+export interface ChatProtobufMessage {
+    from_id: number;
+    to_id: number;
+    to_type: number;
+    message: string;
+}

@@ -1,6 +1,6 @@
 <template>
   <div
-      class="holo-panel-wrapper"
+      class="relative transform-origin-center bg-[rgba(0,15,25,0.5)] backdrop-blur-md p-10 holo-panel-wrapper"
       :class="{ 'is-open': isOpen, 'is-closed': !isOpen && hasToggled }"
       :style="panelStyle"
   >
@@ -49,14 +49,9 @@ const panelStyle = computed(() => {
 
 <style scoped>
 .holo-panel-wrapper {
-  position: relative;
   opacity: 0;
   transform: scaleY(0.005) scaleX(0);
-  transform-origin: center;
-  background: rgba(0, 15, 25, 0.5);
-  backdrop-filter: blur(6px);
   box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.9), 0 0 40px var(--theme-color-glow);
-  padding: 40px;
 }
 
 .holo-panel-wrapper.is-open {

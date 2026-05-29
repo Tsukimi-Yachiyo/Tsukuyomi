@@ -1,5 +1,5 @@
 <template>
-  <div class="holo-checkerboard" :style="boardStyle">
+  <div class="holo-checkerboard grid gap-0.5 opacity-[0.85]" :style="boardStyle">
     <div
         v-for="cell in cells"
         :key="cell.id"
@@ -69,14 +69,7 @@ const cellStyle = (cell: Cell) => {
 </script>
 
 <style scoped>
-.holo-checkerboard {
-  display: grid;
-  gap: 2px;
-  opacity: 0.85;
-}
-
 .checker-cell {
-  /* 定义默认变量消除 IDE 警告 */
   --anim-delay: 0s;
   --anim-delay-pulse: 0.4s;
   --anim-duration: 1s;
@@ -84,12 +77,10 @@ const cellStyle = (cell: Cell) => {
   background-color: var(--theme-color);
   box-shadow: 0 0 5px var(--theme-color-glow);
   opacity: 0;
-  /* 基础出现动画 */
   animation: fadeCell 0.4s ease-out forwards;
   animation-delay: var(--anim-delay);
 }
 
-/* 带有循环属性时的叠加动画 */
 .checker-cell.is-looping {
   animation: fadeCell 0.4s ease-out forwards, pulseCell var(--anim-duration) ease-in-out infinite alternate forwards;
   animation-delay: var(--anim-delay), var(--anim-delay-pulse);

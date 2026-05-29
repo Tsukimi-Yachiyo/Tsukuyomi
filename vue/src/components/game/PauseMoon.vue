@@ -1,19 +1,86 @@
 <template>
-  <!-- 暂停覆盖层 -->
   <Transition name="pause-overlay">
     <div
         v-if="paused"
-        class="pause-moon-root"
+        class="fixed inset-0 z-280 bg-black/45 backdrop-blur-[2px] pointer-events-auto"
         @click.self="unpause"
     >
-      <!-- 月球主体：盒子背景完全透明，依赖内阴影构造动画 -->
-      <div class="moon-container" :style="moonPos">
-        <div class="moon-body" />
-        <div class="moon-glow" />
+      <div
+          ref="live2dContainerRef"
+          v-show="live2dVisible"
+          class="fixed -bottom-25 left-0 w-120 h-160 z-295 overflow-hidden live2d-container"
+          :style="{
+          transform: `translate(${containerPos.x}px, ${containerPos.y}px)`,
+          cursor: isDragging ? 'grabbing' : 'grab'
+          }"
+          @mousedown="onMouseDown"
+          @mouseenter="onContainerEnter"
+          @mouseleave="onContainerLeave">
+        <canvas
+            ref="live2dCanvasRef"
+            class="w-full h-full block bg-transparent"
+        />
+        <Transition name="btn-fade">
+          <button
+              v-if="showCloseBtn"
+              class="live2d-close-btn absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white text-lg hover:bg-red-500 transition-colors cursor-pointer z-10"
+              @click.stop="closeLive2D"
+              title="关闭模型"
+          >
+            ✕
+          </button>
+        </Transition>
       </div>
 
-      <!-- 海洋波浪线条（与月亮变化同时进行） -->
-      <div class="ocean-layer">
+      <div class="fixed z-285 pointer-events-none" :style="moonPos">
+        <!-- 月亮主体 -->
+        <div class="moon-body relative w-20 h-20 rounded-full bg-transparent shadow-[inset_-80px_-80px_0_0_#fff] transition-shadow duration-800 ease-[cubic-bezier(0.23,1,0.32,1)]" />
+        <!-- 月亮光晕 -->
+        <div class="moon-glow absolute -inset-6.25 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.25)_0%,transparent_60%)] transition-all duration-800 ease-in-out" />
+
+        <div class="absolute right-full top-1/2 -translate-y-1/2 mr-4 pointer-events-auto z-290 flex flex-row gap-10">
+          <!-- 用户按钮 -->
+          <button
+              class="w-15 h-15 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer"
+              :class="activeTab === 'user' ? 'bg-[rgba(77,240,255,0.9)]' : 'bg-black/40 hover:bg-black/60'"
+              @click="switchTab('user')"
+              title="用户"
+          >
+            <img :src="userTabIcon" alt="用户" class="w-10 h-10" />
+          </button>
+
+          <!-- 帖子按钮 -->
+          <button
+              class="w-15 h-15 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer"
+              :class="activeTab === 'post' ? 'bg-[rgba(77,240,255,0.9)]' : 'bg-black/40 hover:bg-black/60'"
+              @click="switchTab('post')"
+              title="帖子"
+          >
+            <img :src="postTabIcon" alt="帖子" class="w-10 h-10" />
+          </button>
+
+          <!-- 退出按钮 -->
+          <button
+              class="w-15 h-15 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer"
+              @click="logout"
+              title="退出"
+          >
+            <img :src="logoutIcon" alt="退出" class="w-10 h-10" />
+          </button>
+
+          <!-- 设置按钮 -->
+          <button
+              class="w-15 h-15 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer"
+              :class="activeTab === 'setting' ? 'bg-[rgba(77,240,255,0.9)]' : 'bg-black/40 hover:bg-black/60'"
+              @click="switchTab('setting')"
+              title="设置"
+          >
+            <img :src="settingIcon" alt="设置" class="w-10 h-10" />
+          </button>
+        </div>
+      </div>
+
+      <div class="ocean-layer fixed inset-0 z-283 pointer-events-none transition-all duration-800 ease-[cubic-bezier(0.23,1,0.32,1)]">
         <OceanWaves
             ref="wavesRef"
             :width="oceanWidth"
@@ -28,152 +95,410 @@
         />
       </div>
 
-      <!-- 用户暂停区 -->
       <Transition name="panel-fade">
-        <div v-if="showUserPanel" class="user-panel-wrapper">
-          <UserInfoPause :isSelf="true" />
+        <div v-if="showUserPanel" class="fixed top-32 left-1/2 -translate-x-1/2 z-290 pointer-events-auto">
+          <div class="flex flex-col items-center justify-center min-h-50">
+            <Transition name="tab-content" mode="out-in">
+              <UserInfoPause v-if="activeTab === 'user'" key="user" />
+              <PostDisplayPause v-else-if="activeTab === 'post'" key="post" />
+              <SettingsPanel v-else-if="activeTab === 'setting'" key="setting" />
+            </Transition>
+          </div>
         </div>
       </Transition>
     </div>
   </Transition>
 
-  <!-- 悬停时的月牙预览（在按钮旁） -->
   <Transition name="crescent-appear">
     <div
         v-if="showCrescent"
-        class="crescent-peek"
+        class="fixed w-20 h-20 rounded-full bg-transparent pointer-events-none z-286"
+        style="box-shadow: inset -25px -25px 0 0 #fff;"
         :style="crescentPosition"
     />
   </Transition>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onUnmounted, watch} from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import OceanWaves from '@/components/ocean/OceanWaves.vue';
 import type { WaveLayer } from '@/components/ocean/waveTypes';
 import UserInfoPause from "@/components/game/UserInfoPause.vue";
+import PostDisplayPause from "@/components/game/PostDisplayPause.vue";
+import SettingsPanel from "@/components/game/SettingsPanel.vue";
+import userTabIcon from "@/assets/icons/user-tab.svg";
+import postTabIcon from "@/assets/icons/post-tab.svg";
+import logoutIcon from "@/assets/icons/logout.svg";
+import settingIcon from "@/assets/icons/setting.svg";
+import { CubismFramework, Option, LogLevel } from '@live2d-framework/live2dcubismframework';
+import { LAppSubdelegate } from '@/live2d/lappsubdelegate';
+import { LAppPal } from '@/live2d/lapppal';
+import { LAppModel } from '@/live2d/lappmodel';
+import router from "@/router";
+import {useUserStore} from "@/store/userStore";
 
-const props = defineProps<{
-  paused: boolean;
-  hovered?: boolean;
-  buttonRect?: DOMRect | null;
-}>();
+// --- Props & Emits ---
+const props = defineProps<{ paused: boolean; hovered?: boolean; buttonRect?: DOMRect | null; }>();
+const emit = defineEmits<{ (e: 'update:paused', value: boolean): void; }>();
 
-const emit = defineEmits<{
-  (e: 'update:paused', value: boolean): void;
-}>();
-
+// --- Refs ---
 const wavesRef = ref<InstanceType<typeof OceanWaves>>();
 const oceanWidth = ref(window.innerWidth);
 const oceanHeight = ref(window.innerHeight);
-
 const showUserPanel = ref(false);
+const activeTab = ref<'user' | 'post' | 'setting'>('user');
+const live2dVisible = ref(true);
 let panelTimer: ReturnType<typeof setTimeout> | null = null;
 
-// ========== 悬停月牙预览 ==========
+// Live2D Refs
+const live2dContainerRef = ref<HTMLElement | null>(null);
+const live2dCanvasRef = ref<HTMLCanvasElement | null>(null);
+let live2dSubdelegate: LAppSubdelegate | null = null;
+let live2dModel: LAppModel | null = null;
+let live2dAnimationId: number | null = null;
+let isLive2DInitialized = false;
 
+// ==========================================
+// 核心：基于时间轴的动画引擎 (分离位移与动作)
+// ==========================================
+const animationState = {
+  playing: false,
+  startTime: 0,
+};
+
+// 缓动函数
+function easeOutCubic(t: number): number { return 1 - Math.pow(1 - t, 3); }
+// 定义你的时间轴剧本（触发器模式）
+const timelineSteps = [
+  // 0秒：从左侧 -400px 入场，耗时 1.0 秒
+  { type: 'move', start: 0.0, duration: 1.0, sx: -400, ex: 0, sy: 0, ey: 0 },
+
+  // 1秒：触发表情和动作 (不直接改参数，而是调用官方API)
+  { type: 'trigger', start: 1.0, fired: false, action: () => {
+      if (!live2dModel) return;
+      // 调用你本地的 smiling.exp3.json 表情
+      live2dModel.setExpression('smiling');
+
+      // 注意：这里的 'Greeting' 需要对应你 model3.json 里面的动作组名称。
+      // 如果你的打招呼动作在 'TapBody' 组里，就改成 'TapBody'
+      live2dModel.startRandomMotion('Greeting', 3);
+    }},
+
+  // 3.5秒：恢复平稳站立
+  { type: 'trigger', start: 3.5, fired: false, action: () => {
+      if (!live2dModel) return;
+      // 恢复普通表情
+      live2dModel.setExpression('normal');
+      // 强制切回待机动作
+      live2dModel.startRandomMotion('Idle', 1);
+    }}
+];
+
+// 执行时间轴更新
+function updateCustomTimeline() {
+  if (!animationState.playing) return;
+
+  const elapsed = (performance.now() - animationState.startTime) / 1000;
+
+  let currentX = -400; // 默认停在左外侧
+  let currentY = 0;
+
+  for (const step of timelineSteps) {
+    // 1. 处理位移和跳跃
+    if (step.type === 'move') {
+      if (elapsed >= step.start) {
+        let progress = Math.min((elapsed - step.start) / step.duration, 1.0);
+        if (step.type === 'move') {
+          const t = easeOutCubic(progress);
+          currentX = step.sx + (step.ex - step.sx) * t;
+          currentY = step.sy + (step.ey - step.sy) * t;
+        }
+      }
+    }
+
+    // 2. 处理一次性触发的表情/动作事件
+    if (step.type === 'trigger' && !step.fired && elapsed >= step.start) {
+      step.fired = true;
+      step.action();
+    }
+  }
+
+  // 物理位移由外层 DOM 容器负责，绝不干扰 Live2D 内部逻辑
+  if (live2dContainerRef.value) {
+    containerPos.value = { x: currentX, y: -currentY };
+  }
+
+  // 动画结束清理
+  if (elapsed >= 4.0) {
+    animationState.playing = false;
+  }
+}
+
+function playSequence() {
+  animationState.startTime = performance.now();
+  animationState.playing = true;
+
+  // 重置事件触发锁，保证每次打开面板都会执行打招呼
+  timelineSteps.forEach(step => { if (step.type === 'trigger') step.fired = false; });
+
+  if (live2dContainerRef.value) {
+    containerPos.value = { x: -400, y: 0 };
+  }
+}
+
+// ==========================================
+// 基础 Live2D 生命周期
+// ==========================================
+let isCubismInitialized = false;
+function initCubismFramework(): boolean {
+  if (isCubismInitialized) return true;
+  try {
+    const option = new Option();
+    option.logFunction = (msg: string) => console.log('[Live2D]', msg);
+    option.loggingLevel = LogLevel.LogLevel_Off;
+    CubismFramework.startUp(option);
+    CubismFramework.initialize();
+    isCubismInitialized = true;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function setupCanvasSize() {
+  if (!live2dCanvasRef.value) return;
+  const canvas = live2dCanvasRef.value;
+  canvas.width = canvas.clientWidth * window.devicePixelRatio;
+  canvas.height = canvas.clientHeight * window.devicePixelRatio;
+}
+
+function startRenderLoop() {
+  const render = () => {
+    if (!isLive2DInitialized || !live2dSubdelegate) return;
+
+    LAppPal.updateTime();
+    live2dSubdelegate.update();
+
+    updateCustomTimeline();
+
+    live2dAnimationId = requestAnimationFrame(render);
+  };
+  render();
+}
+
+function stopRenderLoop() {
+  if (live2dAnimationId) {
+    cancelAnimationFrame(live2dAnimationId);
+    live2dAnimationId = null;
+  }
+}
+
+async function initLive2D() {
+  await nextTick();
+  if (!live2dCanvasRef.value) return;
+
+  setupCanvasSize();
+  if (!initCubismFramework()) return;
+
+  LAppPal.updateTime();
+  live2dSubdelegate = new LAppSubdelegate();
+
+  if (live2dSubdelegate.initialize(live2dCanvasRef.value)) {
+    isLive2DInitialized = true;
+    const models = live2dSubdelegate.getLive2DManager()._models;
+    if (models.getSize() > 0) {
+      live2dModel = models.at(0);
+    }
+    if (live2dContainerRef.value) {
+      containerPos.value = { x: -400, y: 0 };
+    }
+    startRenderLoop();
+  }
+}
+
+function cleanupLive2D() {
+  stopRenderLoop();
+  isLive2DInitialized = false;
+  animationState.playing = false;
+  if (live2dSubdelegate) {
+    live2dSubdelegate.release();
+    live2dSubdelegate = null;
+  }
+  live2dModel = null;
+}
+
+// ==========================================
+// UI 计算与其他逻辑
+// ==========================================
 const showCrescent = computed(() => props.hovered && !props.paused);
-
 const crescentPosition = computed(() => {
   if (!props.buttonRect) return { top: '80px', right: '60px' };
   const r = props.buttonRect;
-  return {
-    top: `${r.top + r.height / 2 - 40}px`,  // 把 25 改为 40
-    left: `${r.left + r.width / 2 - 40}px`, // 把 25 改为 40
-  };
+  return { top: `${r.top + r.height / 2 - 40}px`, left: `${r.left + r.width / 2 - 40}px` };
 });
-
-// ========== 月球位置 ==========
-
-// 按钮中心坐标（px）
 const btnCenterX = computed(() => props.buttonRect ? props.buttonRect.left + props.buttonRect.width / 2 : window.innerWidth - 60);
 const btnCenterY = computed(() => props.buttonRect ? props.buttonRect.top + props.buttonRect.height / 2 : 60);
-
-// 月球始终固定在按钮位置
 const moonPos = computed<Record<string, string>>(() => ({
   top: `${btnCenterY.value}px`,
   left: `${btnCenterX.value}px`,
   transform: 'translate(-50%, -50%)',
 }));
-
-// ========== 海洋配置 ==========
 const oceanLayers: WaveLayer[] = [
   { color: 'transparent', amplitude: 30, frequency: 0.008, speed: 0.02, offsetY: 0, opacity: 1, jitter: 0 },
   { color: 'transparent', amplitude: 25, frequency: 0.012, speed: 0.015, offsetY: 20, opacity: 0.7, jitter: 0 },
   { color: 'transparent', amplitude: 20, frequency: 0.018, speed: 0.025, offsetY: 40, opacity: 0.5, jitter: 0 },
 ];
 
-function unpause() {
-  emit('update:paused', false);
-}
-
-// ========== 捕获键盘事件 ==========
+function unpause() { emit('update:paused', false); }
+function switchTab(tab: 'user' | 'post' | 'setting') { activeTab.value = tab; }
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     e.preventDefault();
-    if (props.paused) {
-      unpause();
-    } else {
-      emit('update:paused', true);
-    }
+    props.paused ? unpause() : emit('update:paused', true);
   }
 }
-
 function onResize() {
   oceanWidth.value = window.innerWidth;
   oceanHeight.value = window.innerHeight;
+  if (live2dCanvasRef.value) setupCanvasSize();
+}
+
+const isHovering = ref(false);
+// 拖动相关状态
+const isDragging = ref(false);
+const dragStart = ref({ x: 0, y: 0 });
+const containerPos = ref({ x: 0, y: 0 });   // 当前 translate 值
+
+// 容器初始位置 (对应你的 fixed: bottom-[-25] left-0)
+// 如果你的底部定位是用 bottom: -25px，建议改成基于 top/left 计算，这里为了简单直接用 translate 增量
+// 注意：你的容器使用了 -bottom-25 和 left-0，直接用 translate 从当前位置平移即可
+
+function onMouseDown(e: MouseEvent) {
+  // 避免拖动关闭按钮时触发
+  if ((e.target as HTMLElement).closest('.live2d-close-btn')) return;
+
+  isDragging.value = true;
+  dragStart.value = {
+    x: e.clientX - containerPos.value.x,
+    y: e.clientY - containerPos.value.y
+  };
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
+
+function onMouseMove(e: MouseEvent) {
+  if (!isDragging.value) return;
+  const newX = e.clientX - dragStart.value.x;
+  const newY = e.clientY - dragStart.value.y;
+
+  // 可选：限制在屏幕内
+  const maxX = window.innerWidth - 480;  // 根据容器宽度调整
+  const maxY = window.innerHeight - 640; // 根据容器高度调整
+  containerPos.value = {
+    x: Math.min(Math.max(newX, 0), maxX),
+    y: Math.min(Math.max(newY, 0), maxY)
+  };
+}
+
+function onMouseUp() {
+  isDragging.value = false;
+  document.removeEventListener('mousemove', onMouseMove);
+  document.removeEventListener('mouseup', onMouseUp);
+}
+
+// 记得在组件卸载时清理事件
+onUnmounted(() => {
+  // 原有清理...
+  document.removeEventListener('mousemove', onMouseMove);
+  document.removeEventListener('mouseup', onMouseUp);
+});
+const showCloseBtn = computed(() => isHovering.value && !isDragging.value); // 拖动时隐藏按钮
+
+function onContainerEnter() {
+  isHovering.value = true;
+}
+
+function onContainerLeave() {
+  isHovering.value = false;
+}
+
+function closeLive2D() {
+  live2dVisible.value = false;
+  // 根据需要也可以直接清理资源
+  cleanupLive2D();
+}
+
+function logout() {
+  useUserStore().logout();
+  router.push('/');
+  window.location.reload();
 }
 
 onMounted(() => {
-  // 采用捕获阶段执行，以保证拥有最高优先级
-  window.addEventListener('keydown', onKeydown, true);
+  window.addEventListener('keydown', onKeydown);
   window.addEventListener('resize', onResize);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', onKeydown, true);
+  window.removeEventListener('keydown', onKeydown);
   window.removeEventListener('resize', onResize);
+  cleanupLive2D();
+  if (panelTimer) clearTimeout(panelTimer);
 });
 
 watch(
     () => props.paused,
-    (paused) => {
-      // 清除任何等待中的定时器
-      if (panelTimer) {
-        clearTimeout(panelTimer);
-        panelTimer = null;
-      }
+    async (paused) => {
+      if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
+
       if (paused) {
-        // 延迟 800ms（与月亮、海洋动画时长一致）后显示面板
+        containerPos.value = { x: -400, y: 0 };
+        live2dVisible.value = true;
+        await nextTick();
+        if (!isLive2DInitialized) await initLive2D();
+        activeTab.value = 'user';
+
         panelTimer = setTimeout(() => {
           showUserPanel.value = true;
+          playSequence();
         }, 800);
       } else {
-        // 暂停关闭时立即隐藏面板
+        cleanupLive2D();
         showUserPanel.value = false;
+        activeTab.value = 'user';
       }
     },
     { immediate: true }
 );
-
-// 组件卸载时清理定时器
-onUnmounted(() => {
-  if (panelTimer) clearTimeout(panelTimer);
-});
 </script>
 
 <style scoped>
-/* ========== 覆盖层 ========== */
-.pause-moon-root {
-  position: fixed;
-  inset: 0;
-  z-index: 280;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(2px);
-  pointer-events: auto;
+/* * 仅保留 Vue <Transition> 触发时的特殊状态样式
+ * 这些包含复杂的父子选择器组合，使用原版 CSS 控制更加清晰
+ */
+
+/* 月亮缩小效果 */
+.pause-overlay-enter-from .moon-body,
+.pause-overlay-leave-to .moon-body {
+  box-shadow: inset -25px -25px 0 0 #fff;
 }
 
-/* 结合根节点的动画带动所有子组件的动画同时进出 */
+/* 月亮光晕淡出缩小 */
+.pause-overlay-enter-from .moon-glow,
+.pause-overlay-leave-to .moon-glow {
+  transform: scale(1.3);
+  opacity: 0;
+}
+
+/* 海浪下沉淡出 */
+.pause-overlay-enter-from .ocean-layer,
+.pause-overlay-leave-to .ocean-layer {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+/* 暂停层整体淡入淡出 */
 .pause-overlay-enter-active,
 .pause-overlay-leave-active {
   transition: opacity 0.6s cubic-bezier(0.23, 1, 0.32, 1);
@@ -183,18 +508,17 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* ========== 悬停月牙预览 ========== */
-.crescent-peek {
-  position: fixed;
-  width: 80px;       /* 改为 80px */
-  height: 80px;      /* 改为 80px */
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: inset -25px -25px 0 0 #fff; /* 改为与动画起点一致的 -25px */
-  pointer-events: none;
-  z-index: 286;
+.btn-fade-enter-active,
+.btn-fade-leave-active {
+  transition: opacity 0.2s, transform 0.2s;
+}
+.btn-fade-enter-from,
+.btn-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.8);
 }
 
+/* 新月图标动画 */
 .crescent-appear-enter-active {
   transition: all 0.35s cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -210,99 +534,10 @@ onUnmounted(() => {
   transform: scale(0.6);
 }
 
-/* ========== 月球容器与本体 ========== */
-.moon-container {
-  position: fixed;
-  z-index: 285;
-  pointer-events: none;
+/* 面板浮现动画 */
+.panel-fade-enter-active {
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
-
-.moon-body {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: transparent; /* 背景完全透明 */
-  /* 稳定态为满月，通过 80px 的内阴影填满整个圆形 */
-  box-shadow: inset -80px -80px 0 0 #fff;
-  transition: box-shadow 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-/* 动画：由月牙逐渐变成满月 (或者退出时由满月变回月牙) */
-.pause-overlay-enter-from .moon-body,
-.pause-overlay-leave-to .moon-body {
-  box-shadow: inset -25px -25px 0 0 #fff; /* 起始和结束状态为右下角的月牙 */
-}
-
-/* 月球发光 */
-.moon-glow {
-  position: absolute;
-  inset: -25px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, transparent 60%);
-  transition: transform 0.8s ease, opacity 0.8s ease;
-}
-
-/* 刚出现或即将消失时的发光效果 */
-.pause-overlay-enter-from .moon-glow,
-.pause-overlay-leave-to .moon-glow {
-  transform: scale(1.3);
-  opacity: 0;
-}
-
-/* ========== 海洋层 ========== */
-.ocean-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 283;
-  pointer-events: none;
-  transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-/* 海洋配合根元素淡入淡出及轻微位移 */
-.pause-overlay-enter-from .ocean-layer,
-.pause-overlay-leave-to .ocean-layer {
-  opacity: 0;
-  transform: translateY(30px);
-}
-
-.user-panel-wrapper {
-  position: fixed;
-  top: 200px;
-  left: 100px;
-  width: 1000px;
-  height: 200px;
-  z-index: 290; /* 确保在最上层 */
-  pointer-events: auto;
-}
-
-/* ========== 用户消息区 ========== */
-.user-message-area {
-  position: fixed;
-  bottom: 60px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(600px, 80vw);
-  min-height: 120px;
-  z-index: 290;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
-  transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-  transition-delay: 0.1s; /* 消息区稍微延迟出现显得更自然 */
-}
-
-.pause-overlay-enter-from .user-message-area,
-.pause-overlay-leave-to .user-message-area {
-  opacity: 0;
-  transform: translateX(-50%) translateY(30px);
-}
-   /* ========== 用户面板淡入动画 ========== */
- .panel-fade-enter-active {
-   transition: opacity 0.4s ease, transform 0.4s ease;
- }
 .panel-fade-leave-active {
   transition: opacity 0.2s ease;
 }
@@ -311,6 +546,20 @@ onUnmounted(() => {
   transform: translateY(20px);
 }
 .panel-fade-leave-to {
+  opacity: 0;
+}
+
+.tab-content-enter-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.tab-content-leave-active {
+  transition: opacity 0.2s ease;
+}
+.tab-content-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.tab-content-leave-to {
   opacity: 0;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="barcode-container">
+  <div class="barcode-container flex gap-0.75 h-[45px] mt-3">
     <div
         v-for="(line, index) in lines"
         :key="index"
@@ -50,15 +50,7 @@ const lines = computed<Line[]>(() => {
 </script>
 
 <style scoped>
-.barcode-container {
-  display: flex;
-  gap: 3px;
-  height: 45px;
-  margin-top: 12px;
-}
-
 .barcode-line {
-  /* 定义默认变量消除 IDE 警告 */
   --anim-delay: 0s;
   --anim-delay-loop: 0.4s;
   --anim-duration: 1s;

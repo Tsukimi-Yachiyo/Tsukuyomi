@@ -1,5 +1,5 @@
 <template>
-  <div class="ocean-loading">
+  <div class="relative w-full h-full overflow-hidden pointer-events-none">
     <OceanWaves
       v-if="active"
       ref="wavesRef"
@@ -145,13 +145,3 @@ function getWaveYAtX(x: number): number {
 
 defineExpose({ getWaveYAtX });
 </script>
-
-<style scoped>
-.ocean-loading {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  pointer-events: none;
-}
-</style>

@@ -1,5 +1,5 @@
 <template>
-  <canvas ref="canvasRef" class="ocean-ripple" />
+  <canvas ref="canvasRef" class="block cursor-pointer" />
 </template>
 
 <script setup lang="ts">
@@ -194,10 +194,3 @@ watch(() => props.autoInterval, (val) => {
   if (val > 0) startAutoRipple();
 });
 </script>
-
-<style scoped>
-.ocean-ripple {
-  display: block;
-  cursor: pointer;
-}
-</style>

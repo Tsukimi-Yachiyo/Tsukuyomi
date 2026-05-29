@@ -1,12 +1,12 @@
 <template>
-  <div v-if="isVisible" class="game-ui-root">
+  <div v-if="isVisible" class="pointer-events-none fixed inset-0 z-[150]">
     <!-- 顶部状态栏：从右到左排列 -->
-    <header class="ui-top-bar">
+    <header class="absolute right-0 top-0 flex flex-row-reverse items-center gap-2 px-5 py-3">
       <KeyHint hint-key="ESC">
         <button
             ref="pauseBtnRef"
             class="ui-home-btn"
-            :class="{ 'ui-btn-hidden': paused }"
+            :class="{ 'opacity-0 scale-90 pointer-events-none !pointer-events-none': paused }"
             @mousedown.capture.stop
             @touchstart.capture.stop
             @click.capture.stop="$emit('home')"
@@ -14,23 +14,23 @@
             @mouseleave="onPauseHover(false)"
         >
           <span class="ui-home-circle"></span>
-          <img :src="homeIcon" alt="Home" class="ui-home-icon" />
+          <img :src="homeIcon" alt="Home" class="relative h-[60px] w-[60px] object-contain transition-all duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)]" />
         </button>
       </KeyHint>
       <slot name="top-bar"></slot>
     </header>
 
     <!-- 左下角聊天按钮 -->
-    <div class="ui-chat-anchor">
+    <div class="absolute bottom-14 left-5">
       <KeyHint hint-key="T">
         <button
-            class="ui-chat-btn"
-            :class="{ 'ui-btn-hidden': paused }"
+            class="pointer-events-auto flex h-[42px] w-[42px] items-center justify-center rounded-full border-none bg-white/12 text-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] backdrop-blur transition-all duration-200 ease-in hover:-translate-y-[1px] hover:bg-white/22 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] active:translate-y-0 active:bg-white/15"
+            :class="{ 'opacity-0 scale-90 pointer-events-none !pointer-events-none': paused }"
             @mousedown.capture.stop
             @touchstart.capture.stop
             @click.capture.stop="$emit('chat')"
         >
-          <img :src="chatIcon" alt="Chat" class="w-6 h-6 object-contain" />
+          <img :src="chatIcon" alt="Chat" class="h-6 w-6 object-contain" />
         </button>
       </KeyHint>
     </div>
@@ -46,6 +46,7 @@ import chatIcon from '@/assets/icons/chat.svg';
 
 const props = defineProps<{
   paused?: boolean;
+  chatOpen?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -68,6 +69,7 @@ const onPauseHover = (hovering: boolean) => {
 
 // 使用事件捕获机制 (capture: true) 以确保键盘事件高于其他组件/iframe的优先级
 const onKeydown = (e: KeyboardEvent) => {
+  if (props.chatOpen) return;
   if (e.key === 't' || e.key === 'T') {
     e.stopPropagation();
     e.preventDefault();
@@ -88,30 +90,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.game-ui-root {
-  position: fixed;
-  inset: 0;
-  /* 让根容器鼠标穿透，底层游戏才能正常响应鼠标，内部元素通过继承获得 none */
-  pointer-events: none;
-  z-index: 150;
-}
-
-/* ===== 顶部状态栏 ===== */
-.ui-top-bar {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-}
-
-/* ===== 顶部 Home 按钮 ===== */
 .ui-home-btn {
   position: relative;
-  /* 核心交互元素拿回指针事件的控制权 */
   pointer-events: auto;
   display: flex;
   align-items: center;
@@ -122,6 +102,7 @@ onUnmounted(() => {
   border: none;
   background: transparent;
   cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .ui-home-circle {
@@ -138,72 +119,19 @@ onUnmounted(() => {
   transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.ui-home-icon {
-  position: relative;
-  width: 60px;
-  height: 60px;
-  object-fit: contain;
-  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
 .ui-home-btn:hover .ui-home-circle {
   background: rgba(255, 255, 255, 0.18);
   box-shadow:
-      0 0 20px rgba(255, 255, 255, 0.25),
-      0 0 40px rgba(255, 255, 255, 0.1);
+    0 0 20px rgba(255, 255, 255, 0.25),
+    0 0 40px rgba(255, 255, 255, 0.1);
 }
 
-.ui-home-btn:hover .ui-home-icon {
+.ui-home-btn:hover img {
   transform: scale(1.08);
 }
 
 .ui-home-btn:active .ui-home-circle {
   transform: translate(-50%, -50%) scale(0.95);
   background: rgba(255, 255, 255, 0.12);
-}
-
-/* ===== 左下角聊天按钮 ===== */
-.ui-chat-anchor {
-  position: absolute;
-  left: 20px;
-  bottom: 56px;
-}
-
-.ui-chat-btn {
-  /* 核心交互元素拿回指针事件的控制权 */
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(12px);
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.ui-chat-btn:hover {
-  background: rgba(255, 255, 255, 0.22);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.ui-chat-btn:active {
-  transform: translateY(0);
-  background: rgba(255, 255, 255, 0.15);
-}
-
-/* 暂停时隐藏按钮 */
-.ui-btn-hidden {
-  opacity: 0;
-  /* 加上 !important 防止被组件本身的 auto 覆盖，避免被隐形点击 */
-  pointer-events: none !important;
-  transform: scale(0.8);
-  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 </style>
