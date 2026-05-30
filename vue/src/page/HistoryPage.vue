@@ -45,6 +45,21 @@
         <path d="M19 12H5M12 19l-7-7 7-7" />
       </svg>
     </button>
+
+    <!-- Support button -->
+    <button
+      class="fixed bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-6 py-2.5 rounded-full border transition-all duration-300 select-none"
+      :class="supported
+        ? 'bg-white/10 border-white/20 text-white/70'
+        : 'bg-white/[0.04] border-white/10 text-white/40 hover:border-white/25 hover:text-white/60'"
+      @click="onSupport"
+    >
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+      </svg>
+      <span class="text-sm tracking-widest font-light">助力</span>
+      <span class="text-xs font-mono tracking-wider opacity-60">{{ supportCount }}</span>
+    </button>
   </div>
 </template>
 
@@ -57,6 +72,31 @@ import TimelineLine from '@/components/history/TimelineLine.vue'
 
 const router = useRouter()
 const scrollContainer = ref<HTMLElement>()
+
+// Support counter
+const API_BASE = 'http://localhost:3210'
+const supportCount = ref(0)
+const supported = ref(false)
+
+async function fetchSupport() {
+  try {
+    const res = await fetch(`${API_BASE}/api/support`)
+    const data = await res.json()
+    supportCount.value = data.count
+  } catch { /* server not running, ignore */ }
+}
+
+async function onSupport() {
+  if (supported.value) return
+  supported.value = true
+  try {
+    const res = await fetch(`${API_BASE}/api/support`, { method: 'POST' })
+    const data = await res.json()
+    supportCount.value = data.count
+  } catch {
+    supported.value = false
+  }
+}
 
 // Constants
 const MIN_SPACING = 550
@@ -125,5 +165,6 @@ onMounted(() => {
   if (scrollContainer.value) {
     scrollContainer.value.scrollLeft = 0
   }
+  fetchSupport()
 })
 </script>
