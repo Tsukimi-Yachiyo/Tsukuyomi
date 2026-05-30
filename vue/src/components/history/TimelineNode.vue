@@ -7,19 +7,19 @@
   >
     <!-- Dot -->
     <div
-      class="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-white transition-all duration-300 z-10"
-      :class="hovered ? 'scale-150 shadow-[0_0_12px_rgba(255,255,255,0.6)]' : ''"
+      class="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full transition-all duration-300 z-10"
+      :class="dotClasses"
       :style="{ top: dotPosition }"
     />
 
     <!-- Card -->
     <div
-      class="w-[260px] border border-white/10 rounded-lg p-4 backdrop-blur-sm bg-black/60 transition-all duration-300"
+      class="w-[260px] border rounded-lg p-4 backdrop-blur-sm transition-all duration-300"
       :class="cardClasses"
     >
-      <div class="text-[0.65rem] text-white/40 tracking-widest mb-1.5 font-mono">{{ formattedDate }}</div>
-      <h3 class="text-sm text-white font-medium mb-2 tracking-wide">{{ title }}</h3>
-      <p class="text-xs text-white/50 leading-relaxed m-0">{{ description }}</p>
+      <div :class="future ? 'text-white/20' : 'text-white/40'" class="text-[0.65rem] tracking-widest mb-1.5 font-mono">{{ formattedDate }}</div>
+      <h3 :class="future ? 'text-white/40' : 'text-white'" class="text-sm font-medium mb-2 tracking-wide">{{ title }}</h3>
+      <p :class="future ? 'text-white/25' : 'text-white/50'" class="text-xs leading-relaxed m-0">{{ description }}</p>
       <img
         v-if="image"
         :src="image"
@@ -43,6 +43,7 @@ const props = defineProps<{
   description: string
   image?: string
   delay?: number
+  future?: boolean
 }>()
 
 const hovered = ref(false)
@@ -55,12 +56,22 @@ const dotPosition = computed(() => cardAbove.value ? '100%' : '-8px')
 const containerStyle = computed(() => ({
   left: `${props.x}px`,
   top: `${props.y}px`,
-  opacity: visible.value ? 1 : 0,
+  opacity: visible.value ? (props.future ? 0.4 : 1) : 0,
   transform: `translate(-50%, -50%) translateY(${visible.value ? 0 : 20}px)`,
 }))
 
+const dotClasses = computed(() => {
+  if (props.future) return 'bg-white/25'
+  return hovered.value
+    ? 'bg-white scale-150 shadow-[0_0_12px_rgba(255,255,255,0.6)]'
+    : 'bg-white'
+})
+
 const cardClasses = computed(() => [
-  hovered.value ? 'border-white/30 -translate-y-1' : '',
+  props.future
+    ? 'border-white/[0.06] bg-black/40'
+    : 'border-white/10 bg-black/60',
+  hovered.value && !props.future ? 'border-white/30 -translate-y-1' : '',
   cardAbove.value ? 'mb-6' : 'mt-6',
 ])
 

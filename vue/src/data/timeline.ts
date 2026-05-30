@@ -4,6 +4,7 @@ export interface TimelineEvent {
   title: string
   description: string
   image?: string
+  future?: boolean
 }
 
 export const timelineEvents: TimelineEvent[] = [
@@ -217,5 +218,49 @@ export const timelineEvents: TimelineEvent[] = [
     date: '2026-05-30',
     title: '项目历史页上线',
     description: '开发并上线项目历史时间线页面，记录八千代从一行代码到元宇宙的完整成长轨迹。',
+  },
+
+  // ── 未来：未竟之路 ──
+  {
+    id: 'future-metaverse',
+    date: '2026-07-01',
+    title: '元宇宙空间',
+    description: 'Cocos Creator 3.8 构建的 2.5D 月读空间——像素风元宇宙世界，支持百人同屏实时互动。',
+    future: true,
+  },
+  {
+    id: 'future-langgraph',
+    date: '2026-08-01',
+    title: 'LangGraph 全面接入',
+    description: '完成从 Spring AI 到 LangGraph 的完整迁移，支持多轮对话、工具调用与复杂任务编排。',
+    future: true,
+  },
+  {
+    id: 'future-game',
+    date: '2026-09-01',
+    title: '游戏玩法上线',
+    description: '在月读空间中加入探索、收集、任务等游戏玩法，从聊天工具进化为真正的虚拟世界。',
+    future: true,
+  },
+  {
+    id: 'future-novel',
+    date: '2026-10-01',
+    title: '小说系统',
+    description: '上线互动小说功能，玩家可以在月读空间中体验《超时空辉夜姬》的原创剧情。',
+    future: true,
+  },
+  {
+    id: 'future-optimize',
+    date: '2026-11-01',
+    title: '性能与体验优化',
+    description: '全面优化渲染性能、网络同步与加载速度，打磨每一个交互细节。',
+    future: true,
+  },
+  {
+    id: 'future-open',
+    date: '2026-12-01',
+    title: '正式开放',
+    description: '月读空间正式向所有玩家开放，八千代的故事翻开新的一页。',
+    future: true,
   },
 ]

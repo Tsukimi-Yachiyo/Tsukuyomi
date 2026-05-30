@@ -18,7 +18,7 @@
     <!-- Scrollable inner container -->
     <div class="relative h-full" :style="{ width: `${totalWidth}px` }">
       <!-- SVG connecting line -->
-      <TimelineLine :points="nodePositions" :width="totalWidth" :height="containerHeight" />
+      <TimelineLine :points="nodePositions" :width="totalWidth" :height="containerHeight" :future-index="futureStartIndex" />
 
       <!-- Timeline nodes -->
       <TimelineNode
@@ -32,6 +32,7 @@
         :description="event.description"
         :image="event.image"
         :delay="index * 200"
+        :future="event.future"
       />
     </div>
 
@@ -84,6 +85,11 @@ const totalDays = computed(() => Math.max(1, (endDate.value - startDate.value) /
 const contentWidth = computed(() => totalDays.value * CONTENT_SCALE)
 const totalWidth = computed(() =>
   Math.max(timelineEvents.length * MIN_SPACING, contentWidth.value) + PADDING * 2
+)
+
+// Index where future events begin
+const futureStartIndex = computed(() =>
+  sortedEvents.value.findIndex(e => e.future === true)
 )
 
 // Node positions
