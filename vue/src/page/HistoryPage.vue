@@ -46,6 +46,25 @@
       </svg>
     </button>
 
+    <!-- Server countdowns -->
+    <div class="fixed top-6 right-6 z-30 flex flex-col gap-2.5 items-end">
+      <div
+        v-for="s in serverCountdowns"
+        :key="s.name"
+        class="flex items-center gap-3 px-4 py-2 rounded-lg border backdrop-blur-sm transition-all duration-300"
+        :class="s.expired
+          ? 'border-red-500/30 bg-red-500/[0.06]'
+          : s.urgent
+            ? 'border-amber-400/30 bg-amber-400/[0.06]'
+            : 'border-white/15 bg-white/[0.04]'"
+      >
+        <span class="text-[0.7rem] tracking-wider" :class="s.expired ? 'text-red-400' : s.urgent ? 'text-amber-300' : 'text-white/60'">{{ s.name }}</span>
+        <span class="text-sm font-mono tracking-wide" :class="s.expired ? 'text-red-400' : s.urgent ? 'text-amber-300' : 'text-white/90'">
+          {{ s.expired ? '已到期' : s.text }}
+        </span>
+      </div>
+    </div>
+
     <!-- Support button -->
     <button
       class="fixed bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-6 py-2.5 rounded-full border transition-all duration-300 select-none"
@@ -64,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { timelineEvents } from '@/data/timeline'
 import TimelineNode from '@/components/history/TimelineNode.vue'
@@ -97,6 +116,32 @@ async function onSupport() {
     supported.value = false
   }
 }
+
+// Server countdowns
+// MC server: Apr 30 2026, 2-month expiry → Jun 30 2026
+// Frontend server: Mar 26 2026, 1-year expiry → Mar 26 2027
+// Backend server: Mar 31 2026, 1-year expiry → Mar 31 2027
+const servers = [
+  { name: 'MC 服务器', expiry: new Date('2026-06-30T00:00:00') },
+  { name: '前端服务器', expiry: new Date('2027-03-26T00:00:00') },
+  { name: '后端服务器', expiry: new Date('2027-03-31T00:00:00') },
+]
+
+const now = ref(Date.now())
+let timer: ReturnType<typeof setInterval>
+
+const serverCountdowns = computed(() =>
+  servers.map(s => {
+    const diff = s.expiry.getTime() - now.value
+    const expired = diff <= 0
+    const urgent = !expired && diff < 30 * 24 * 60 * 60 * 1000 // < 30 days
+    const days = Math.floor(Math.abs(diff) / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((Math.abs(diff) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    const minutes = Math.floor((Math.abs(diff) % (1000 * 60 * 60)) / (1000 * 60))
+    const text = `${days}天 ${String(hours).padStart(2, '0')}时 ${String(minutes).padStart(2, '0')}分`
+    return { name: s.name, text, expired, urgent }
+  })
+)
 
 // Constants
 const MIN_SPACING = 550
@@ -166,5 +211,10 @@ onMounted(() => {
     scrollContainer.value.scrollLeft = 0
   }
   fetchSupport()
+  timer = setInterval(() => { now.value = Date.now() }, 60_000)
+})
+
+onUnmounted(() => {
+  clearInterval(timer)
 })
 </script>
