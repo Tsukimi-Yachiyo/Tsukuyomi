@@ -163,6 +163,12 @@ export const timelineEvents: TimelineEvent[] = [
     description: '实现用户间的关注与被关注功能，社交关系链初步建立。',
   },
   {
+    id: 'icp-filing',
+    date: '2026-04-27',
+    title: '备案通过',
+    description: '网站 ICP 备案审核通过，项目正式获得合法运营资质。',
+  },
+  {
     id: 'minecraft-server',
     date: '2026-04-30',
     title: 'MC 服务器建立',
