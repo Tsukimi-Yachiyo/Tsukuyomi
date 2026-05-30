@@ -17,7 +17,7 @@
       class="w-[260px] border rounded-lg p-4 backdrop-blur-sm transition-all duration-300"
       :class="cardClasses"
     >
-      <div :class="future ? 'text-white/20' : 'text-white/40'" class="text-[0.65rem] tracking-widest mb-1.5 font-mono">{{ formattedDate }}</div>
+      <div v-if="!future" class="text-[0.65rem] text-white/40 tracking-widest mb-1.5 font-mono">{{ formattedDate }}</div>
       <h3 :class="future ? 'text-white/40' : 'text-white'" class="text-sm font-medium mb-2 tracking-wide">{{ title }}</h3>
       <p :class="future ? 'text-white/25' : 'text-white/50'" class="text-xs leading-relaxed m-0">{{ description }}</p>
       <img

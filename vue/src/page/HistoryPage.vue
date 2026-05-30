@@ -59,10 +59,10 @@ const router = useRouter()
 const scrollContainer = ref<HTMLElement>()
 
 // Constants
-const MIN_SPACING = 400
+const MIN_SPACING = 550
 const CONTENT_SCALE = 3
 const PADDING = 400
-const Y_OFFSETS = [-80, 60, -40, 90, -60, 50, -100, 70]
+const Y_OFFSETS = [-60, 50, -40, 70, -50, 40, -70, 60]
 
 const containerHeight = computed(() => {
   if (!scrollContainer.value) return 800
