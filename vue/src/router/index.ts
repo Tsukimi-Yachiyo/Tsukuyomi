@@ -52,6 +52,16 @@ const router = createRouter({
       name: 'About',
       component: () => import('@/page/AboutPage.vue'),
     },
+    {
+      path: '/column/view',
+      name: 'ColumnView',
+      component: () => import('@/page/ColumnViewPage.vue'),
+    },
+    {
+      path: '/history',
+      name: 'History',
+      component: () => import('@/page/HistoryPage.vue'),
+    },
   ],
 });
 
