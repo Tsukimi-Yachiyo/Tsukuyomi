@@ -49,35 +49,26 @@
       </button>
     </div>
 
-    <div ref="contentRef" class="fixed z-10 left-1/2 -translate-x-1/2 top-[25vh] bottom-0 w-full max-w-8xl overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none transition-opacity duration-700 px-8 pb-6" :class="oceanDone ? 'opacity-100' : 'opacity-0'">
+    <div ref="contentRef" class="fixed z-10 left-1/2 -translate-x-1/2 top-[25vh] bottom-0 w-full max-w-8xl overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none transition-opacity duration-700 px-8 pb-6"
+         :class="oceanDone ? 'opacity-100' : 'opacity-0'">
 
-      <div
-          v-if="post && scrolled"
-          class="sticky top-0 z-10 flex items-center gap-4 px-6 py-4 rounded-b-2xl transition-all duration-300 -mx-8 bg-linear-to-br from-cyan-700/25 to-cyan-800/15 border-b border-cyan-400/15 backdrop-blur-xl"
-      >
-        <button
-            class="flex items-center justify-center w-9 h-9 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all"
-            @click="router.back()"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <span class="text-base font-semibold text-white/90 truncate">{{ post.title }}</span>
-      </div>
-
-      <div v-if="post && !scrolled" class="mb-4">
-        <button
-            class="flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors mb-3"
-            @click="closePostView()"
-        >
+      <div v-if="post" class="post-nav">
+        <button ref="backRef" class="post-nav__back" @click="closePostView()">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           <span>返回</span>
         </button>
-        <h1 class="text-2xl font-semibold text-white leading-relaxed">{{ post.title }}</h1>
-        <span class="text-sm text-gray-600">点赞 {{ postStatus?.likeCount || 0 }} 收藏 {{ postStatus?.collectionCount || 0 }} 投币 {{ postStatus?.coinCount || 0 }} 阅读 {{ postStatus?.readingCount || 0 }}</span>
+
+        <h1 ref="titleRef" class="post-nav__title">{{ post.title }}</h1>
+
+        <span ref="statsRef" class="post-nav__stats">点赞 {{ postStatus?.likeCount || 0 }} 收藏 {{ postStatus?.collectionCount || 0 }} 投币 {{ postStatus?.coinCount || 0 }} 阅读 {{ postStatus?.readingCount || 0 }}</span>
+
+        <button ref="topRef" class="post-nav__top" @click="scrollToTop()" title="回到顶部">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
+        </button>
       </div>
 
       <article v-if="post" class="mx-6 bg-[#0c1e35]/90 border border-white/8 rounded-2xl overflow-hidden">
@@ -182,7 +173,22 @@ const newComment = ref('');
 const oceanLoadingRef = ref<InstanceType<typeof OceanLoading>>();
 const oceanDone = ref(false);
 const contentRef = ref<HTMLDivElement>();
-const scrolled = ref(false);
+
+// 控制栏动画 refs
+const backRef = ref<HTMLButtonElement>();
+const titleRef = ref<HTMLHeadingElement>();
+const statsRef = ref<HTMLSpanElement>();
+const topRef = ref<HTMLButtonElement>();
+
+// 滚动驱动动画常量
+const COMPACT_TOP_Y = 0          // 紧凑行 clamp 位置 = 标题栏中心 Y (top:56 + height:48/2)
+const EXPANDED_BACK_Y = 0     // 返回按钮展开时的 top
+const EXPANDED_TITLE_Y = 56   // 标题展开时的 top
+const EXPANDED_STATS_Y = 116  // 统计展开时的 top
+let scrollRafId = 0
+
+function clamp(v: number, min: number, max: number) { return Math.min(max, Math.max(min, v)) }
+function lerp(a: number, b: number, t: number) { return a + (b - a) * t }
 
 const postId = Number(route.params.id);
 if (!postId) {
@@ -192,6 +198,10 @@ if (!postId) {
 
 function closePostView() {
   window.close()
+}
+
+function scrollToTop() {
+  contentRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 const waveItems = ref<{ x: number; y: number }[]>([
@@ -296,9 +306,42 @@ const addComment = async () => {
   }
 };
 
-const onScroll = () => {
-  scrolled.value = (contentRef.value?.scrollTop ?? 0) > 60;
-};
+function onScroll() {
+  if (scrollRafId) return
+  scrollRafId = requestAnimationFrame(updateControlPositions)
+}
+
+function updateControlPositions() {
+  scrollRafId = 0
+  const st = contentRef.value?.scrollTop ?? 0
+
+  // 1. 返回按钮：原本就在 0，不需要任何 Y 轴位移，稳如泰山
+  if (backRef.value) {
+    backRef.value.style.transform = `translateY(0px)`
+  }
+
+  // 2. 标题：CSS 初始在 56px，滚动时向上滑动 56px（最终停在 0px）
+  if (titleRef.value) {
+    const t = clamp(st / 60, 0, 1)
+    titleRef.value.style.transform = `translateY(${lerp(0, COMPACT_TOP_Y - EXPANDED_TITLE_Y, t)}px)`
+    titleRef.value.style.left = lerp(0, 90, t) + 'px'
+    titleRef.value.style.right = lerp(0, 56, t) + 'px'
+  }
+
+  // 3. 统计信息：保持向上滚动并提前渐隐
+  if (statsRef.value) {
+    statsRef.value.style.transform = `translateY(${-st}px)`
+    statsRef.value.style.opacity = String(clamp((30 - st) / 30, 0, 1))
+    statsRef.value.style.pointerEvents = st > 15 ? 'none' : 'auto'
+  }
+
+  // 4. 回到顶部按钮：只处理缩放和透明度，位置由 CSS 决定
+  if (topRef.value) {
+    const t = clamp(st / 60, 0, 1)
+    topRef.value.style.opacity = String(t)
+    topRef.value.style.transform = `scale(${lerp(0.3, 1, t)})`
+  }
+}
 
 async function loadComments() {
   const commentsList = await api.comment.getList(postId);
@@ -324,12 +367,112 @@ async function deleteComment(commentId: number) {
 onMounted(() => {
   if (!checkAuth()) return;
   loadPost();
-  contentRef.value?.addEventListener('scroll', onScroll);
+  contentRef.value?.addEventListener('scroll', onScroll, { passive: true });
   waveRafId = requestAnimationFrame(updateWaveItems);
 });
 
 onUnmounted(() => {
   cancelAnimationFrame(waveRafId);
+  cancelAnimationFrame(scrollRafId);
   contentRef.value?.removeEventListener('scroll', onScroll);
 });
 </script>
+
+<style scoped>
+.post-nav {
+  position: sticky;
+  top: 0;
+  height: 160px;
+  margin-bottom: 16px;
+  z-index: 10;
+}
+
+.post-nav__back,
+.post-nav__title,
+.post-nav__stats,
+.post-nav__top {
+  position: absolute;
+  will-change: transform, opacity, left, right;
+}
+
+.post-nav__back,
+.post-nav__title,
+.post-nav__top {
+  box-sizing: border-box;
+  height: 48px;
+}
+
+.post-nav__back {
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.25s ease-out, color 0.2s, background 0.2s;
+}
+.post-nav__back:hover {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.post-nav__title {
+  left: 0;
+  top: 56px;
+  right: 0;
+  margin: 0;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: white;
+  line-height: 48px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: transform 0.25s ease-out, left 0.25s ease-out, right 0.25s ease-out;
+}
+
+.post-nav__stats {
+  left: 0;
+  top: 116px;
+  font-size: 14px;
+  color: rgba(107, 114, 128, 1);
+  transition: transform 0.25s ease-out, opacity 0.25s ease;
+}
+
+.post-nav__top {
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.3s ease,
+              color 0.2s, background 0.2s;
+}
+.post-nav__top:hover {
+  color: rgb(103, 232, 249);
+  background: rgba(0, 0, 0, 0.8);
+}
+.post-nav__top:active {
+  transform: scale(0.88);
+}
+</style>

@@ -53,6 +53,11 @@ const router = createRouter({
       component: () => import('@/page/AboutPage.vue'),
     },
     {
+      path: '/agreement',
+      name: 'Agreement',
+      component: () => import('@/page/AgreementPage.vue'),
+    },
+    {
       path: '/column/view',
       name: 'ColumnView',
       component: () => import('@/page/ColumnViewPage.vue'),

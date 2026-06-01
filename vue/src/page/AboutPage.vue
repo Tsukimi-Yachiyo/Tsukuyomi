@@ -154,6 +154,14 @@
       <footer class="text-center mt-20 pt-8 border-t border-white/[0.06]">
         <p class="text-[0.75rem] text-white/30 m-0 [letter-spacing:2px]">&copy; 2026 月读工作室 / Tsukuyomi Studio</p>
         <p class="text-[0.75rem] text-white/30 m-0 mt-2 italic [letter-spacing:2px]">用爱发电，用心造梦 / Made with love and caffeine</p>
+        <div class="mt-6 space-y-1.5">
+          <p class="text-[0.7rem] text-white/20 m-0 leading-relaxed">
+            本站使用的《超时空辉夜姬》相关素材版权归原作者所有，本站为非盈利性质，如有侵权请联系删除。
+          </p>
+          <p class="text-[0.7rem] text-white/20 m-0 [letter-spacing:1px]">
+            备案号：京ICP备2026016717号
+          </p>
+        </div>
       </footer>
     </div>
   </div>

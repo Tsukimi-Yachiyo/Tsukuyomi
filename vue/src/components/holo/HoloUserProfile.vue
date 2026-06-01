@@ -4,7 +4,10 @@
       <div class="relative z-[1] flex flex-col gap-3 p-4">
         <!-- Avatar + Name -->
         <div class="flex items-center gap-3">
-          <div class="w-14 h-14 flex-shrink-0">
+          <div
+            class="w-14 h-14 flex-shrink-0 cursor-pointer"
+            @click="openUserPage"
+          >
             <HoloAvatar :src="userInfo?.userAvatar || ''" loop />
           </div>
           <div class="flex flex-col gap-0.5 min-w-0">
@@ -78,6 +81,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { api } from '@/api';
 import { useUserStore } from '@/store/userStore';
 import type { UserDetailDTO } from '@/api/types';
@@ -104,6 +108,7 @@ const emit = defineEmits<{
   'follow-success': [];
 }>();
 
+const router = useRouter();
 const userStore = useUserStore();
 const userInfo = ref<UserDetailDTO | null>(null);
 const isFollowing = ref(false);
@@ -173,6 +178,14 @@ const loadUserInfo = async () => {
     isFollowing.value = userInfo.value?.isFollowing || false;
   } catch (error) {
     console.error('[HoloUserProfile] Failed to load user info:', error);
+  }
+};
+
+const openUserPage = () => {
+  const id = props.isSelf ? userStore.userId : props.userId;
+  if (id) {
+    const route = router.resolve({ name: 'User', params: { id: String(id) } });
+    window.open(route.href, '_blank');
   }
 };
 

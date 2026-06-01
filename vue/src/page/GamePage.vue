@@ -5,7 +5,7 @@
   <!-- 主容器：控制整体渲染时机 -->
   <div v-show="isReadyToRender">
     <!-- 视频背景容器 -->
-    <div class="fixed inset-0 z-10 overflow-hidden pointer-events-none">
+    <div class="fixed inset-0 z-10 overflow-hidden pointer-events-none bg-black">
       <video
         ref="videoRef"
         class="w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-in-out"
@@ -14,6 +14,7 @@
         autoplay
         muted
         playsinline
+        @canplay="onVideoCanPlay"
         @ended="onVideoEnded"
       />
 
@@ -38,6 +39,30 @@
     </div>
   </div>
 
+  <!-- 活动弹窗 -->
+  <Transition name="activity-fade">
+    <div
+      v-if="showActivityPopup && activityCoverUrl"
+      class="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      @click.self="closeActivityPopup"
+    >
+      <div class="relative animate-bounce-in">
+        <img
+          :src="activityCoverUrl"
+          :alt="activityName"
+          class="max-h-[80vh] max-w-[90vw] rounded-xl shadow-2xl object-contain cursor-pointer"
+          @click="openActivity"
+        />
+        <button
+          class="absolute -top-3 -right-3 w-10 h-10 bg-black/70 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-lg font-bold transition-colors shadow-lg"
+          @click="closeActivityPopup"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  </Transition>
+
   <!-- 弹幕提示组件 -->
   <HoloDanmaku />
 
@@ -49,15 +74,17 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, ref, watch, onUnmounted } from 'vue';
+import { reactive, computed, onMounted, ref, watch, onUnmounted, nextTick } from 'vue';
 import SplashScreen from '@/components/SplashScreen.vue';
 import CocosContainer from '@/components/CocosContainer.vue';
 import HoloDanmaku from '@/components/holo/HoloDanmaku.vue';
 import LoginModal from '@/components/login/LoginModal.vue';
+import { useRouter } from 'vue-router';
 import { useUserStore } from '@/store/userStore';
 import { useAuthCheck } from '@/composables/useAuthCheck';
 import { preloadResources } from '@/core/bootstrap';
 import { socketService } from '@/api/socket';
+import { api } from '@/api';
 import loopVideo from '@/assets/video/start_video_loop.mp4';
 import loadVideo from '@/assets/video/start_video_load.mp4';
 import KeyHint from "@/components/game/KeyHint.vue";
@@ -65,6 +92,7 @@ import skipIcon from "@/assets/icons/skip.svg";
 
 type BootPhase = 'idle' | 'loading-resources' | 'ready';
 
+const router = useRouter();
 const userStore = useUserStore();
 const { showLoginModal, checkAuth, onLoginSuccess } = useAuthCheck();
 const videoRef = ref<HTMLVideoElement | null>(null);
@@ -78,12 +106,65 @@ const state = reactive({
 });
 
 const isReadyToRender = ref(false);
-const isVideoVisible = ref(true);
+const isVideoVisible = ref(false);
 const currentVideoIndex = ref(0);
 const shouldSwitchVideo = ref(false);
 const splashProgress = ref(0);
 const isSplashHidden = ref(false);
 const gameContainerZClass = ref('z-0');
+
+// 活动弹窗
+const showActivityPopup = ref(false);
+const activityCoverUrl = ref('');
+const activityName = ref('');
+const activityEssayUrl = ref('');
+
+const fetchActivity = async () => {
+  try {
+    const list = await api.column.getActivity(1);
+    if (!list?.length) return;
+    const activity = list[0];
+    activityName.value = activity.name;
+    activityEssayUrl.value = activity.fileUrl || '';
+    const blob = await api.file.downloadPublic(`${activity.name}.png`, 'public');
+    activityCoverUrl.value = URL.createObjectURL(blob);
+    showActivityPopup.value = true;
+  } catch (e) {
+    console.warn('获取活动失败:', e);
+  }
+};
+
+const getFileNameFromUrl = (url: string): string => {
+  if (!url) return ''
+  try {
+    const params = new URLSearchParams(url.split('?')[1])
+    return params.get('fileName') || url.split('/').pop() || ''
+  } catch {
+    return url.split('/').pop() || ''
+  }
+}
+
+const openActivity = () => {
+  if (!activityEssayUrl.value) return;
+  const routeData = router.resolve({
+    name: 'ColumnView',
+    query: {
+      url: activityEssayUrl.value,
+      name: getFileNameFromUrl(activityEssayUrl.value),
+      title: activityName.value || ''
+    }
+  });
+  window.open(routeData.href, '_blank');
+  closeActivityPopup();
+};
+
+const closeActivityPopup = () => {
+  showActivityPopup.value = false;
+  if (activityCoverUrl.value) {
+    URL.revokeObjectURL(activityCoverUrl.value);
+    activityCoverUrl.value = '';
+  }
+};
 
 const videoUrls = [loopVideo, loadVideo];
 const currentVideoUrl = computed(() => videoUrls[currentVideoIndex.value]);
@@ -104,7 +185,11 @@ const runBootSequence = async () => {
   state.phase = 'loading-resources';
   splashProgress.value = 30;
 
-  await preloadResources();
+  await preloadResources((loaded, total) => {
+    // 进度从 30% 平滑推进到 80%
+    const ratio = total > 0 ? loaded / total : 1;
+    splashProgress.value = 30 + Math.round(ratio * 50);
+  });
   state.isResourcesLoaded = true;
   isResourcesLoaded.value = true;
   splashProgress.value = 80;
@@ -124,6 +209,10 @@ const runBootSequence = async () => {
   }
 };
 
+const onVideoCanPlay = () => {
+  isVideoVisible.value = true;
+};
+
 const onVideoEnded = async () => {
   if (currentVideoIndex.value === 0) {
     if (shouldSwitchVideo.value) {
@@ -138,6 +227,9 @@ const onVideoEnded = async () => {
 };
 
 const switchToLoadVideo = async () => {
+  // 先隐藏视频，等新视频加载好再通过 onVideoCanPlay 显示
+  isVideoVisible.value = false;
+  await nextTick();
   currentVideoIndex.value = 1;
   shouldSwitchVideo.value = false;
   if (videoRef.value) {
@@ -181,13 +273,38 @@ watch(() => userStore.isLoggedIn, async (isLoggedIn) => {
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown);
   runBootSequence();
+  fetchActivity();
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown);
+  socketService.disconnect();
   if (videoRef.value) {
     videoRef.value.pause();
     videoRef.value.src = '';
   }
+  if (activityCoverUrl.value) URL.revokeObjectURL(activityCoverUrl.value);
 });
 </script>
+
+<style scoped>
+.activity-fade-enter-active {
+  transition: opacity 0.3s ease;
+}
+.activity-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.activity-fade-enter-from,
+.activity-fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-bounce-in {
+  animation: bounce-in 0.4s ease-out;
+}
+</style>

@@ -184,6 +184,19 @@ export interface AddColumnRequest {
     file: File;
 }
 
+export interface ColumnResponse {
+    id: number;
+    name: string;
+    description: string;
+    type: EssayType;
+    coverImage?: string;
+    writerId: number;
+    writerName?: string;
+    createTime: string;
+    fileUrl?: string;
+    fileName?: string;
+}
+
 export type ReviewAction = 'APPROVE' | 'REJECT' | 'DELETE';
 export type PostingStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 export type EssayType = 'SIMPLE' | 'NOVEL' | 'ACTIVITY';
@@ -199,8 +212,58 @@ export interface ChatMessageDTO {
 }
 
 export interface ChatProtobufMessage {
-    from_id: number;
-    to_id: number;
-    to_type: number;
+    fromId: number;
+    toId: number;
+    toType: number;
     message: string;
+}
+
+// ==========================================
+// 8. Mail Service (站内信服务) 相关
+// ==========================================
+
+export interface Mail {
+    id: number;
+    title: string;
+    content: string;
+    receiverId: number;
+    senderId: number;
+    isRead: boolean;
+    isSpecial: boolean;
+    sendTime: string;
+}
+
+export interface MailSendRequest {
+    title: string;
+    content: string;
+    receiverId: number;
+}
+
+export interface AdminMailRequest {
+    title: string;
+    content: string;
+}
+
+// ==========================================
+// 9. AI Chat Service (AI 聊天服务) 相关
+// ==========================================
+
+export interface AIChatRequest {
+    prompt: string;
+    session_id?: number;
+}
+
+export interface AIChatSession {
+    id: number;
+    user_id: number;
+    create_time: string;
+}
+
+export interface AIChatHistory {
+    id: number;
+    session_id: number;
+    human_input: string;
+    ai_result: string;
+    spend_tokens: number;
+    create_time: string;
 }

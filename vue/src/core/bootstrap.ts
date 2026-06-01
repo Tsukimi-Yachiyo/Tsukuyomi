@@ -17,7 +17,7 @@ const preloadVideo = async (src: string): Promise<void> => {
   }
 };
 
-export const preloadResources = async () => {
+export const preloadResources = async (onProgress?: (loaded: number, total: number) => void) => {
   const imageModules = import.meta.glob('../assets/**/*.{png,jpg,jpeg,gif,svg,webp}', { eager: true });
   const videoModules = import.meta.glob('../assets/**/*.mp4', { eager: true });
 
@@ -29,9 +29,19 @@ export const preloadResources = async () => {
     .map((r: any) => typeof r === 'string' ? r : r?.default)
     .filter((u): u is string => typeof u === 'string');
 
+  const allUrls = [...imageUrls, ...videoUrls];
+  const total = allUrls.length;
+  let loaded = 0;
+
+  const trackProgress = (promise: Promise<void>) =>
+    promise.finally(() => {
+      loaded++;
+      onProgress?.(loaded, total);
+    });
+
   await Promise.all([
-    ...imageUrls.map(preloadImage),
-    ...videoUrls.map(preloadVideo),
+    ...imageUrls.map(url => trackProgress(preloadImage(url))),
+    ...videoUrls.map(url => trackProgress(preloadVideo(url))),
   ]);
 };
 

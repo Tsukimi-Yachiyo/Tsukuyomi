@@ -59,6 +59,26 @@
             <img :src="postTabIcon" alt="帖子" class="w-10 h-10" />
           </button>
 
+          <!-- 专栏按钮 -->
+          <button
+              class="w-15 h-15 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer"
+              :class="activeTab === 'column' ? 'bg-[rgba(77,240,255,0.9)]' : 'bg-black/40 hover:bg-black/60'"
+              @click="switchTab('column')"
+              title="专栏"
+          >
+            <img :src="columnsIcon" alt="专栏" class="w-10 h-10" />
+          </button>
+
+          <!-- 信箱按钮 -->
+          <button
+              class="w-15 h-15 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer"
+              :class="activeTab === 'mail' ? 'bg-[rgba(77,240,255,0.9)]' : 'bg-black/40 hover:bg-black/60'"
+              @click="switchTab('mail')"
+              title="信箱"
+          >
+            <img :src="mailIcon" alt="信箱" class="w-10 h-10" />
+          </button>
+
           <!-- 退出按钮 -->
           <button
               class="w-15 h-15 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer"
@@ -101,6 +121,8 @@
             <Transition name="tab-content" mode="out-in">
               <UserInfoPause v-if="activeTab === 'user'" key="user" />
               <PostDisplayPause v-else-if="activeTab === 'post'" key="post" />
+              <ColumnPause v-else-if="activeTab === 'column'" key="column" />
+              <MailListPause v-else-if="activeTab === 'mail'" key="mail" />
               <SettingsPanel v-else-if="activeTab === 'setting'" key="setting" />
             </Transition>
           </div>
@@ -126,8 +148,12 @@ import type { WaveLayer } from '@/components/ocean/waveTypes';
 import UserInfoPause from "@/components/game/UserInfoPause.vue";
 import PostDisplayPause from "@/components/game/PostDisplayPause.vue";
 import SettingsPanel from "@/components/game/SettingsPanel.vue";
+import ColumnPause from "@/components/game/ColumnPause.vue";
+import MailListPause from "@/components/game/MailListPause.vue";
 import userTabIcon from "@/assets/icons/user-tab.svg";
 import postTabIcon from "@/assets/icons/post-tab.svg";
+import columnsIcon from "@/assets/icons/columns.svg";
+import mailIcon from "@/assets/icons/mail.svg";
 import logoutIcon from "@/assets/icons/logout.svg";
 import settingIcon from "@/assets/icons/setting.svg";
 import { CubismFramework, Option, LogLevel } from '@live2d-framework/live2dcubismframework';
@@ -146,7 +172,7 @@ const wavesRef = ref<InstanceType<typeof OceanWaves>>();
 const oceanWidth = ref(window.innerWidth);
 const oceanHeight = ref(window.innerHeight);
 const showUserPanel = ref(false);
-const activeTab = ref<'user' | 'post' | 'setting'>('user');
+const activeTab = ref<'user' | 'post' | 'column' | 'mail' | 'setting'>('user');
 const live2dVisible = ref(true);
 let panelTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -350,7 +376,7 @@ const oceanLayers: WaveLayer[] = [
 ];
 
 function unpause() { emit('update:paused', false); }
-function switchTab(tab: 'user' | 'post' | 'setting') { activeTab.value = tab; }
+function switchTab(tab: 'user' | 'post' | 'column' | 'mail' | 'setting') { activeTab.value = tab; }
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     e.preventDefault();

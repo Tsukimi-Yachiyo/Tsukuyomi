@@ -88,30 +88,26 @@ import { useRouter } from 'vue-router'
 import { timelineEvents } from '@/data/timeline'
 import TimelineNode from '@/components/history/TimelineNode.vue'
 import TimelineLine from '@/components/history/TimelineLine.vue'
+import api from '@/api'
 
 const router = useRouter()
 const scrollContainer = ref<HTMLElement>()
 
-// Support counter
-const API_BASE = 'http://localhost:3210'
+// Support counter — trigger auto-updates support_count on insert
 const supportCount = ref(0)
 const supported = ref(false)
 
 async function fetchSupport() {
   try {
-    const res = await fetch(`${API_BASE}/api/support`)
-    const data = await res.json()
-    supportCount.value = data.count
-  } catch { /* server not running, ignore */ }
+    supportCount.value = await api.system.getSupportCount()
+  } catch { /* ignore */ }
 }
 
 async function onSupport() {
   if (supported.value) return
   supported.value = true
   try {
-    const res = await fetch(`${API_BASE}/api/support`, { method: 'POST' })
-    const data = await res.json()
-    supportCount.value = data.count
+    supportCount.value = await api.system.incrementSupport()
   } catch {
     supported.value = false
   }

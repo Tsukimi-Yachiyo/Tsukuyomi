@@ -33,6 +33,14 @@ export default defineConfig(({ mode }) => {
       ],
       host: '0.0.0.0',
       proxy: {
+        '/api/extract': {
+          target: 'http://127.0.0.1:3200',
+          changeOrigin: true,
+        },
+        '/static': {
+          target: 'http://127.0.0.1:3200',
+          changeOrigin: true,
+        },
         '/api': {
           target: proxyTarget,
           changeOrigin: true,

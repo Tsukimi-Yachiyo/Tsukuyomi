@@ -1,7 +1,7 @@
 <template>
-  <div ref="containerRef" class="dynamic-viewer-container">
+  <div ref="containerRef" :class="fullscreen ? 'w-full h-full' : 'dynamic-viewer-container'">
     <!-- 占位符 -->
-    <div v-if="!shouldLoad" class="viewer-placeholder">
+    <div v-if="!shouldLoad && !fullscreen" class="viewer-placeholder">
       <div class="placeholder-spinner" />
       <span class="text-sm text-white/40">等待滚动加载...</span>
     </div>
@@ -21,99 +21,50 @@
       <p class="text-sm text-white/70">{{ error }}</p>
     </div>
 
-    <!-- HTML内容 -->
-    <div v-else-if="contentType === 'html'" class="viewer-content" v-html="htmlContent" />
+    <!-- iframe（HTML/ZIP 解压后的内容） -->
+    <iframe
+      v-else-if="iframeSrc"
+      :src="iframeSrc"
+      :class="fullscreen ? 'w-full h-full border-0' : 'viewer-iframe'"
+      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+      allow="fullscreen"
+    />
 
     <!-- Vue动态组件 -->
-    <component v-else-if="contentType === 'vue' && dynamicComponent" :is="dynamicComponent" />
+    <component v-else-if="dynamicComponent" :is="dynamicComponent" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, type Component } from 'vue';
-import JSZip from 'jszip';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   url: string;
-}>();
+  fileName?: string;
+  fullscreen?: boolean;
+}>(), {
+  fullscreen: false,
+});
 
 const containerRef = ref<HTMLDivElement>();
 const loading = ref(true);
 const error = ref('');
 const shouldLoad = ref(false);
-const htmlContent = ref('');
-const contentType = ref<'html' | 'vue' | ''>('');
+const iframeSrc = ref('');
 const dynamicComponent = ref<Component | null>(null);
 
 let observer: IntersectionObserver | null = null;
 
 const detectFileType = (url: string): 'html' | 'vue' | 'zip' => {
+  if (props.fileName) {
+    const ext = props.fileName.split('.').pop()?.toLowerCase() || '';
+    if (ext === 'zip') return 'zip';
+    if (ext === 'vue') return 'vue';
+  }
   const lowerUrl = url.toLowerCase();
   if (lowerUrl.endsWith('.zip')) return 'zip';
   if (lowerUrl.endsWith('.vue')) return 'vue';
   return 'html';
-};
-
-const extractTemplateFromVueSFC = (sfcContent: string): string => {
-  const templateMatch = sfcContent.match(/<template[^>]*>([\s\S]*?)<\/template>/i);
-  return templateMatch ? templateMatch[1].trim() : '<p class="text-white/50">无法提取Vue组件模板</p>';
-};
-
-const extractZipAndFindTarget = async (zipData: ArrayBuffer, url: string): Promise<{ content: string; type: 'html' | 'vue' }> => {
-  const zip = await JSZip.loadAsync(zipData);
-
-  const targetFileName = url.split('/').pop() || '';
-
-  let targetFile: JSZip.JSZipObject | null = null;
-
-  if (targetFileName) {
-    targetFile = zip.file(`**/${targetFileName}`)?.[0] || null;
-    if (!targetFile) {
-      targetFile = zip.file(targetFileName)?.[0] || null;
-    }
-  }
-
-  if (!targetFile) {
-    const allFiles = Object.keys(zip.files);
-    const htmlOrVueFiles = allFiles.filter(
-      f => !zip.files[f].dir && (f.endsWith('.html') || f.endsWith('.htm') || f.endsWith('.vue'))
-    );
-
-    if (htmlOrVueFiles.length === 0) {
-      throw new Error('压缩包中未找到HTML或Vue文件');
-    }
-
-    targetFile = zip.files[htmlOrVueFiles[0]];
-  }
-
-  let content = await targetFile.async('string');
-  const isVueFile = targetFile.name.endsWith('.vue');
-  
-  if (isVueFile) {
-    content = extractTemplateFromVueSFC(content);
-  }
-
-  return { content, type: isVueFile ? 'vue' : 'html' };
-};
-
-const loadHtml = async (url: string): Promise<string> => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`HTML文件加载失败: ${response.status}`);
-  }
-  return await response.text();
-};
-
-const loadVueComponent = async (url: string): Promise<Component> => {
-  try {
-    const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
-
-    const module = await import(/* @vite-ignore */ normalizedUrl);
-
-    return module.default || module;
-  } catch (e: any) {
-    throw new Error(`Vue组件动态导入失败: ${e.message}`);
-  }
 };
 
 const loadContent = async () => {
@@ -130,22 +81,23 @@ const loadContent = async () => {
     const fileType = detectFileType(props.url);
 
     if (fileType === 'zip') {
-      const response = await fetch(props.url);
-      if (!response.ok) {
-        throw new Error(`ZIP文件加载失败: ${response.status}`);
-      }
-
-      const zipData = await response.arrayBuffer();
-      const { content, type } = await extractZipAndFindTarget(zipData, props.url);
-
-      contentType.value = 'html';
-      htmlContent.value = content;
+      // 调用后端解压服务（相对路径，由 Vite/Nginx 代理转发）
+      const res = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: props.url }),
+      });
+      if (!res.ok) throw new Error(`解压服务错误: ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      iframeSrc.value = data.url;
     } else if (fileType === 'vue') {
-      contentType.value = 'vue';
-      dynamicComponent.value = await loadVueComponent(props.url);
+      const normalizedUrl = props.url.startsWith('/') ? props.url : `/${props.url}`;
+      const module = await import(/* @vite-ignore */ normalizedUrl);
+      dynamicComponent.value = module.default || module;
     } else {
-      contentType.value = 'html';
-      htmlContent.value = await loadHtml(props.url);
+      // 普通 HTML 直接用 iframe 加载
+      iframeSrc.value = props.url;
     }
   } catch (e: any) {
     error.value = e.message || '内容加载失败';
@@ -155,8 +107,14 @@ const loadContent = async () => {
   }
 };
 
-onMounted(() => {
+const setupObserver = () => {
   if (!containerRef.value) return;
+
+  if (props.fullscreen) {
+    shouldLoad.value = true;
+    loadContent();
+    return;
+  }
 
   observer = new IntersectionObserver(
     (entries) => {
@@ -170,14 +128,13 @@ onMounted(() => {
         }
       }
     },
-    {
-      threshold: 0.1,
-      rootMargin: '100px',
-    }
+    { threshold: 0.1, rootMargin: '100px' }
   );
 
   observer.observe(containerRef.value);
-});
+};
+
+onMounted(() => setupObserver());
 
 onUnmounted(() => {
   if (observer) {
@@ -188,36 +145,13 @@ onUnmounted(() => {
 
 watch(() => props.url, () => {
   shouldLoad.value = false;
-  htmlContent.value = '';
+  iframeSrc.value = '';
   dynamicComponent.value = null;
-  contentType.value = '';
   loading.value = true;
   error.value = '';
 
-  if (observer) {
-    observer.disconnect();
-  }
-
-  if (containerRef.value) {
-    observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting && !shouldLoad.value) {
-          shouldLoad.value = true;
-          loadContent();
-          if (observer) {
-            observer.disconnect();
-            observer = null;
-          }
-        }
-      },
-      {
-        threshold: 0.1,
-        rootMargin: '100px',
-      }
-    );
-    observer.observe(containerRef.value);
-  }
+  if (observer) observer.disconnect();
+  setupObserver();
 });
 </script>
 
@@ -255,14 +189,14 @@ watch(() => props.url, () => {
   border-top-color: #60a5fa;
 }
 
-.viewer-content {
+.viewer-iframe {
   width: 100%;
-  overflow: auto;
+  height: 100%;
+  min-height: 500px;
+  border: none;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 </style>

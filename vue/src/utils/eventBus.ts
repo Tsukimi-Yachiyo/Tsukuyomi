@@ -29,13 +29,6 @@ export type RootEvents = {
     'network:send-player-move': any;
     'network:send-chat': any;
     'network:send-block-interaction': any;
-
-    // Chat WebSocket 事件
-    'chat:connected': void;
-    'chat:disconnected': { code: number; reason: string };
-    'chat:error': any;
-    'chat:send-message': { fromId: number; toId: number; toType: number; message: string };
-    'chat:received': any;
 };
 
 export const eventBus = mitt<RootEvents>();

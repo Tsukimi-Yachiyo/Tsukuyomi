@@ -46,7 +46,7 @@ import GameUI from '@/components/game/GameUI.vue';
 import KeyboardHints from '@/components/game/KeyboardHints.vue';
 import PauseMoon from '@/components/game/PauseMoon.vue';
 import UserInfoPause from "@/components/game/UserInfoPause.vue";
-import ChatDialog from '@/components/game/ChatDialog.vue';
+import ChatDialog from '@/components/chat/ChatDialog.vue';
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const cocosIframe = ref<HTMLIFrameElement | null>(null);

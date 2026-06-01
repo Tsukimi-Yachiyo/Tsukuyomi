@@ -3,31 +3,34 @@ import { eventBus } from '../utils/eventBus';
 import { api } from './index';
 
 export enum OpCode {
+    CHAT = 0,
     PLAYER_MOVE = 1,
-    CHAT = 2,
     BLOCK_INTERACTION = 3,
     PLAYER_JOIN_LEAVE = 4,
     PLAYER_POSITION = 5,
-    ROOM_SYNC_FRAME = 100
+    ROOM_SYNC_FRAME = 100,
 }
 
-export class SocketService {
+class SocketService {
     private ws: WebSocket | null = null;
-    private root: protobuf.Root | null = null;
-    private reconnectAttempts = 0;
-    private maxReconnectAttempts = 5;
-    private reconnectDelay = 3000;
-
     private SpacePacket: protobuf.Type | null = null;
     private PlayerTransform: protobuf.Type | null = null;
-    private PlayerChat: protobuf.Type | null = null;
+    private Chat: protobuf.Type | null = null;
     private BlockInteraction: protobuf.Type | null = null;
     private PlayerJoinLeave: protobuf.Type | null = null;
     private PlayerPosition: protobuf.Type | null = null;
     private RoomSyncFrame: protobuf.Type | null = null;
 
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private reconnectAttempts = 0;
+    private maxReconnectAttempts = 5;
+    private reconnectDelay = 3000;
+    private manualClose = false;
+    private protoLoaded = false;
+    private currentRoomId = 101;
+
     constructor() {
-        this.loadProto().then(() => this.setupEventListeners());
+        this.loadProto();
     }
 
     private setupEventListeners() {
@@ -38,47 +41,63 @@ export class SocketService {
 
     private async loadProto() {
         try {
-            const protoContent = await fetch('/proto/MoonSpace.proto');
-            const protoText = await protoContent.text();
-            this.root = protobuf.parse(protoText).root;
+            const spaceRes = await fetch('/proto/MoonSpace.proto');
+            const spaceRoot = protobuf.parse(await spaceRes.text()).root;
 
-            this.SpacePacket = this.root.lookupType('com.kaguya.metaverse.protocol.SpacePacket');
-            this.PlayerTransform = this.root.lookupType('com.kaguya.metaverse.protocol.PlayerTransform');
-            this.PlayerChat = this.root.lookupType('com.kaguya.metaverse.protocol.PlayerChat');
-            this.BlockInteraction = this.root.lookupType('com.kaguya.metaverse.protocol.BlockInteraction');
-            this.PlayerJoinLeave = this.root.lookupType('com.kaguya.metaverse.protocol.PlayerJoinLeave');
-            this.PlayerPosition = this.root.lookupType('com.kaguya.metaverse.protocol.PlayerPosition');
-            this.RoomSyncFrame = this.root.lookupType('com.kaguya.metaverse.protocol.RoomSyncFrame');
-            
-            console.log('[Socket] Protobuf 协议加载完成');
+            this.SpacePacket = spaceRoot.lookupType('com.kaguya.metaverse.protocol.SpacePacket');
+            this.PlayerTransform = spaceRoot.lookupType('com.kaguya.metaverse.protocol.PlayerTransform');
+            this.BlockInteraction = spaceRoot.lookupType('com.kaguya.metaverse.protocol.BlockInteraction');
+            this.PlayerJoinLeave = spaceRoot.lookupType('com.kaguya.metaverse.protocol.PlayerJoinLeave');
+            this.PlayerPosition = spaceRoot.lookupType('com.kaguya.metaverse.protocol.PlayerPosition');
+            this.RoomSyncFrame = spaceRoot.lookupType('com.kaguya.metaverse.protocol.RoomSyncFrame');
+            this.Chat = spaceRoot.lookupType('com.kaguya.metaverse.protocol.Chat');
+
+            this.protoLoaded = true;
+            this.setupEventListeners();
+            console.log('[Socket] Protobuf 加载完成');
         } catch (error) {
-            console.error('[Socket] Protobuf 协议加载失败:', error);
+            console.error('[Socket] Protobuf 加载失败:', error);
         }
     }
 
     public async connect(roomId: number = 101) {
+        // 先断开已有连接
+        this.cleanup();
+
+        this.manualClose = false;
+        this.currentRoomId = roomId;
+
+        if (!this.protoLoaded) {
+            console.warn('[Socket] Proto 未加载，等待...');
+            await new Promise<void>((resolve) => {
+                const check = () => {
+                    if (this.protoLoaded) resolve();
+                    else setTimeout(check, 100);
+                };
+                check();
+            });
+        }
+
         try {
             const wsToken = await api.auth.getWsToken();
-            console.log(`[Socket] Connected to ${wsToken}`);
             let baseUrl = import.meta.env.VITE_WS_URL;
 
             const token = wsToken.split('.')[0];
             const userId = wsToken.split('.')[1];
-            
+
             if (!baseUrl) {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const host = window.location.host;
-                baseUrl = `${protocol}//${host}`;
+                baseUrl = `${protocol}//${window.location.host}`;
             }
-            
-            const connectUrl = `${baseUrl}/ws/room?roomId=${roomId}&userId=${userId}&token=${token}`;
-            
-            console.log(`[Socket] 尝试连接后端: ${connectUrl}`);
+
+            const connectUrl = `${baseUrl}/ws?roomId=${roomId}&userId=${userId}&token=${token}`;
+            console.log(`[Socket] 连接: ${connectUrl}`);
+
             this.ws = new WebSocket(connectUrl);
             this.ws.binaryType = 'arraybuffer';
 
             this.ws.onopen = () => {
-                console.log('%c[Socket] 连接成功！', 'color: green; font-weight: bold;');
+                console.log('%c[Socket] 连接成功', 'color: green; font-weight: bold;');
                 this.reconnectAttempts = 0;
                 eventBus.emit('socket:connected');
             };
@@ -91,134 +110,109 @@ export class SocketService {
 
             this.ws.onerror = (err) => {
                 console.error('[Socket] 连接错误:', err);
-                eventBus.emit('socket:error', err);
             };
 
             this.ws.onclose = (event) => {
-                console.warn('[Socket] 连接已关闭:', event.code, event.reason);
+                console.warn(`[Socket] 关闭: code=${event.code} reason=${event.reason} wasClean=${event.wasClean}`);
+                console.warn(`[Socket] 连接URL: ${connectUrl}`);
+                console.warn(`[Socket] wsToken原始值: ${wsToken}`);
+                this.ws = null;
                 eventBus.emit('socket:disconnected', { code: event.code, reason: event.reason });
-                this.tryReconnect(roomId);
+                if (!this.manualClose) {
+                    this.scheduleReconnect();
+                }
             };
         } catch (error) {
-            console.error('[Socket] 获取 Token 失败，无法连接:', error);
-            this.tryReconnect(roomId);
+            console.error('[Socket] 连接失败:', error);
         }
     }
 
-    private tryReconnect(roomId: number) {
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.reconnectAttempts++;
-            console.log(`[Socket] 尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-            setTimeout(() => this.connect(roomId), this.reconnectDelay);
-        } else {
-            console.error('[Socket] 重连次数已达上限，停止重连');
+    private scheduleReconnect() {
+        if (this.reconnectTimer) return;
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.error('[Socket] 重连次数耗尽');
+            return;
+        }
+
+        this.reconnectAttempts++;
+        console.log(`[Socket] ${this.reconnectDelay / 1000}s 后重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            this.connect(this.currentRoomId);
+        }, this.reconnectDelay);
+    }
+
+    private cleanup() {
+        this.manualClose = true;
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        if (this.ws) {
+            this.ws.onclose = null;
+            this.ws.close();
+            this.ws = null;
         }
     }
 
     public disconnect() {
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
-        }
+        this.reconnectAttempts = this.maxReconnectAttempts; // 阻止重连
+        this.cleanup();
     }
 
     private dispatch(buffer: Uint8Array) {
         if (!this.SpacePacket) return;
 
         try {
-            const outerPacket = this.SpacePacket.decode(buffer) as any;
-            const { opcode, payload } = outerPacket;
-
-            console.log(`[Socket] 收到封包 OpCode: ${opcode}, Payload长度: ${payload.length}`);
+            const packet = this.SpacePacket.decode(buffer) as any;
+            const { opcode, payload } = packet;
 
             switch (opcode) {
-                case OpCode.PLAYER_MOVE:
-                    if (this.PlayerTransform) {
-                        const moveData = this.PlayerTransform.decode(payload);
-                        console.log('[数据-移动]', moveData);
-                        eventBus.emit('cocos:player-sync', moveData);
-                    }
-                    break;
                 case OpCode.CHAT:
-                    if (this.PlayerChat) {
-                        const chatData = this.PlayerChat.decode(payload);
-                        console.log('[数据-聊天]', chatData);
-                        eventBus.emit('cocos:new-chat', chatData);
-                    }
+                    if (this.Chat) eventBus.emit('cocos:new-chat', this.Chat.decode(payload));
+                    break;
+                case OpCode.PLAYER_MOVE:
+                    if (this.PlayerTransform) eventBus.emit('cocos:player-sync', this.PlayerTransform.decode(payload));
                     break;
                 case OpCode.BLOCK_INTERACTION:
-                    if (this.BlockInteraction) {
-                        const interactData = this.BlockInteraction.decode(payload);
-                        console.log('[数据-地块交互]', interactData);
-                        eventBus.emit('cocos:block-interaction', interactData);
-                    }
+                    if (this.BlockInteraction) eventBus.emit('cocos:block-interaction', this.BlockInteraction.decode(payload));
                     break;
                 case OpCode.PLAYER_JOIN_LEAVE:
-                    if (this.PlayerJoinLeave) {
-                        const joinData = this.PlayerJoinLeave.decode(payload);
-                        console.log('[数据-玩家进出]', joinData);
-                        eventBus.emit('cocos:player-join-leave', joinData);
-                    }
+                    if (this.PlayerJoinLeave) eventBus.emit('cocos:player-join-leave', this.PlayerJoinLeave.decode(payload));
                     break;
                 case OpCode.PLAYER_POSITION:
-                    if (this.PlayerPosition) {
-                        const posData = this.PlayerPosition.decode(payload);
-                        console.log('[数据-玩家位置]', posData);
-                        eventBus.emit('cocos:player-position', posData);
-                    }
+                    if (this.PlayerPosition) eventBus.emit('cocos:player-position', this.PlayerPosition.decode(payload));
                     break;
                 case OpCode.ROOM_SYNC_FRAME:
-                    if (this.RoomSyncFrame) {
-                        const syncData = this.RoomSyncFrame.decode(payload);
-                        console.log('[数据-帧同步]', syncData);
-                        eventBus.emit('cocos:room-sync-frame', syncData);
-                    }
+                    if (this.RoomSyncFrame) eventBus.emit('cocos:room-sync-frame', this.RoomSyncFrame.decode(payload));
                     break;
-                default:
-                    console.warn(`[Socket] 未知的 OpCode: ${opcode}`);
             }
         } catch (error) {
-            console.error('[Socket] 解码失败，请检查 Proto 协议是否与后端一致:', error);
+            console.error('[Socket] 解码失败:', error);
         }
     }
 
     private send(opcode: OpCode, type: protobuf.Type, payload: any) {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.warn('[Socket] 连接未就绪，无法发送消息');
-            return;
-        }
-        
-        if (!this.SpacePacket) {
-            console.error('[Socket] Protobuf 未加载完成');
-            return;
-        }
-
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.SpacePacket) return;
         try {
-            const innerBuffer = type.encode(type.create(payload)).finish();
-            const outerMessage = this.SpacePacket.create({ opcode, payload: innerBuffer });
-            const finalBuffer = this.SpacePacket.encode(outerMessage).finish();
-            this.ws.send(finalBuffer as any);
+            const inner = type.encode(type.create(payload)).finish();
+            const outer = this.SpacePacket.create({ opcode, payload: inner });
+            this.ws.send(this.SpacePacket.encode(outer).finish() as any);
         } catch (error) {
-            console.error('[Socket] 发送消息失败:', error);
+            console.error('[Socket] 发送失败:', error);
         }
     }
 
     public sendPlayerMove(data: any) {
-        if (this.PlayerTransform) {
-            this.send(OpCode.PLAYER_MOVE, this.PlayerTransform, data);
-        }
+        if (this.PlayerTransform) this.send(OpCode.PLAYER_MOVE, this.PlayerTransform, data);
     }
 
     public sendChat(data: any) {
-        if (this.PlayerChat) {
-            this.send(OpCode.CHAT, this.PlayerChat, data);
-        }
+        if (this.Chat) this.send(OpCode.CHAT, this.Chat, data);
     }
 
     public sendBlockInteraction(data: any) {
-        if (this.BlockInteraction) {
-            this.send(OpCode.BLOCK_INTERACTION, this.BlockInteraction, data);
-        }
+        if (this.BlockInteraction) this.send(OpCode.BLOCK_INTERACTION, this.BlockInteraction, data);
     }
 
     public isConnected(): boolean {
@@ -226,4 +220,5 @@ export class SocketService {
     }
 }
 
+// 单例：模块级唯一实例
 export const socketService = new SocketService();

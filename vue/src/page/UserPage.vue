@@ -15,7 +15,7 @@
       </button>
 
       <!-- 用户信息卡片 + 帖子流 -->
-      <div class="rounded-2xl bg-white/2 border border-white/6 backdrop-blur-sm overflow-visible">
+      <div class="user-card rounded-2xl bg-white/2 border border-white/6 backdrop-blur-sm overflow-hidden">
         <UserInfoPause :user-id="userId">
           <template #content>
             <!-- 帖子横向流式布局 -->
@@ -131,6 +131,12 @@ watch(() => route.params.id, (newId) => {
   overflow: visible !important;
   align-items: flex-start !important;
   justify-content: flex-start !important;
+}
+
+/* 约束 UserInfoPause 的固定 w-[90vw] max-w-400，使其自适应父容器 */
+.user-card > :deep(div) {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 .smooth-scroll::-webkit-scrollbar {

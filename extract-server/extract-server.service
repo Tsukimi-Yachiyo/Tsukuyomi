@@ -1,0 +1,15 @@
+[Unit]
+Description=ZIP Extract Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/extract-server
+ExecStart=/usr/bin/node index.js
+Restart=always
+Environment=PORT=3200
+Environment=STATIC_DIR=/var/www/zip-static
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

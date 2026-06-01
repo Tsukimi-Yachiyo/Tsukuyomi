@@ -71,20 +71,34 @@ service.interceptors.response.use(
             return response.data;
         }
 
+        // Go 后端通用记录接口特殊处理（返回 {code, msg, data} / {msg, id} 格式）
+        if (response.config.url?.includes('/api/v3/record/')) {
+            return response.data;
+        }
+
+        // 二进制响应（blob/arraybuffer）直接返回，不走 JSON 解析
+        if (response.config.responseType === 'blob' || response.config.responseType === 'arraybuffer') {
+            return response.data;
+        }
+
         if (!response.data) {
             return Promise.reject(new Error('Server Error'));
         }
         // 如果相应数据为列表, 返回列表
         if (Array.isArray(response.data)) {
-            let dataList: any[] = [];
-            for (let i = 0, len = response.data.length; i < len; i++) {
-                const item = response.data[i];
-                if (item.code !== 200 && item.code !== 0 && String(item.code) !== '200') {
-                    return Promise.reject(new Error(item.message || 'Server Error'));
+            const first = response.data[0];
+            if (first && typeof first === 'object' && 'code' in first) {
+                let dataList: any[] = [];
+                for (let i = 0, len = response.data.length; i < len; i++) {
+                    const item = response.data[i];
+                    if (item.code !== 200 && item.code !== 0 && String(item.code) !== '200') {
+                        return Promise.reject(new Error(item.message || 'Server Error'));
+                    }
+                    dataList.push(item.data);
                 }
-                dataList.push(item.data);
+                return dataList;
             }
-            return dataList;
+            return response.data;
         }
         const { code, data, message } = response.data;
 
@@ -115,6 +129,19 @@ export const api = {
     system: {
         hello: (): Promise<string> =>
             service.get('/api/v3/test/hello'),
+
+        getSupportCount: (): Promise<number> =>
+            service.post('/api/v3/record/get', {
+                tablename: 'support_count',
+                id: 1,
+                field: 'count',
+            }).then((res: any) => Number(res.data ?? 0)),
+
+        incrementSupport: (): Promise<number> =>
+            service.post('/api/v3/record/add', {
+                tablename: 'support',
+                data: { count: 0 },
+            }).then((res: any) => Number(res.id)),
     },
     auth: {
         sendCode: (email: string): Promise<boolean> =>
@@ -240,6 +267,9 @@ export const api = {
 
         interact: (data: T.InteractionRequest): Promise<boolean> =>
             service.put('/api/v2/column/interaction', data),
+
+        getActivity: (number: number): Promise<T.ColumnResponse[]> =>
+            service.get('/api/v2/column/activity', { params: { number } }),
     },
 
     coin: {
@@ -280,6 +310,15 @@ export const api = {
 
         deleteColumn: (id: number): Promise<boolean> =>
             service.delete('/api/yachiyo/168/mini/admin/delete-column', { params: { id } }),
+
+        sendMail: (data: T.AdminMailRequest): Promise<boolean> =>
+            service.post('/api/yachiyo/168/mini/admin/send-mail', data),
+
+        sendEmail: (data: T.AdminMailRequest): Promise<boolean> =>
+            service.post('/api/yachiyo/168/mini/admin/send-email', data),
+
+        runCommand: (command: string): Promise<string> =>
+            service.post('/api/yachiyo/168/mini/admin/run-command', null, { params: { command } }),
     },
 
     file: {
@@ -291,8 +330,50 @@ export const api = {
         getFriends: (): Promise<number[]> =>
             service.get('/api/v2/chat/friend'),
 
-        getMessages: (friendId: number, before?: string): Promise<T.ChatMessageDTO[]> =>
+        getMessages: (friendId: number, before: string): Promise<T.ChatMessageDTO[]> =>
             service.get('/api/v2/chat/messages', { params: { friendId, before } }),
+    },
+
+    ai: {
+        chat: (data: T.AIChatRequest): Promise<string> =>
+            service.post('/api/v2/ai/chat', data),
+
+        getHistory: (sessionId: number): Promise<T.AIChatHistory[]> =>
+            service.post('/api/v2/ai/history', null, { params: { session_id: sessionId } }),
+
+        addSession: (): Promise<boolean> =>
+            service.post('/api/v2/ai/session/add'),
+
+        removeSession: (sessionId: number): Promise<boolean> =>
+            service.post('/api/v2/ai/session/remove', null, { params: { session_id: sessionId } }),
+
+        getSessions: (): Promise<T.AIChatSession[]> =>
+            service.post('/api/v2/ai/session/get'),
+    },
+
+    mail: {
+        send: (mail: T.MailSendRequest): Promise<boolean> => {
+            const formData = new FormData();
+            formData.append('mailRequest', new Blob([JSON.stringify(mail)], { type: 'application/json' }));
+            return service.put('/api/v2/mail', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        },
+
+        get: (id: number): Promise<T.Mail> => {
+            const formData = new FormData();
+            formData.append('id', new Blob([JSON.stringify(id)], { type: 'application/json' }));
+            return service.get('/api/v2/mail', {
+                data: formData,
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        },
+
+        search: (): Promise<number[]> =>
+            service.post('/api/v2/mail'),
+
+        delete: (id: number): Promise<boolean> =>
+            service.delete('/api/v2/mail', { params: { id } }),
     }
 };
 

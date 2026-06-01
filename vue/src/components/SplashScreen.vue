@@ -11,6 +11,14 @@
       ></div>
     </div>
     <div class="mt-5 font-sans text-sm text-white/60 tracking-[2px]">{{ loadingText }}</div>
+    <div class="absolute bottom-6 left-0 right-0 text-center space-y-1 px-6">
+      <p class="text-[11px] text-white/15 m-0 leading-relaxed">
+        本站使用的《超时空辉夜姬》相关素材版权归原作者所有，本站为非盈利性质，如有侵权请联系删除。
+      </p>
+      <p class="text-[11px] text-white/15 m-0 tracking-[1px]">
+        备案号：京ICP备2026016717号
+      </p>
+    </div>
   </div>
 </template>
 

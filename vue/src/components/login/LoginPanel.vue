@@ -98,18 +98,56 @@
                   </template>
 
                   <template v-else-if="currentTab === 'register'">
-                    <HoloInput v-model="registerForm.email" label="NEW_ID / 邮箱" placeholder="Enter Email..." :anim-delay="1.2" />
-                    <div class="flex gap-2.5 items-end [&>.holo-input-wrapper]:flex-1 [&>.holo-input-wrapper]:mb-0">
-                      <HoloInput v-model="registerForm.code" label="AUTH_CODE / 验证码" placeholder="Code..." :anim-delay="1.4" />
-                      <button class="bg-[#4df0ff]/10 border border-[#4df0ff] text-[#4df0ff] px-4 py-2 cursor-pointer h-[38px] transition-all duration-300 font-['Courier_New',Courier,monospace] text-sm hover:bg-[#4df0ff] hover:text-black [box-shadow:0_0_10px_var(--theme-color-glow)] disabled:opacity-40 disabled:cursor-not-allowed send-code-button" @click="handleSendCode('register')" :disabled="countdown > 0">
-                        <span v-if="countdown > 0">{{ countdown }}s</span><span v-else>发送</span>
+
+                    <div v-if="registerStep === 1" class="flex flex-col relative animate-[fadeIn_0.3s_ease-out]">
+                      <HoloInput v-model="registerForm.username" label="USERNAME / 用户名" placeholder="Enter Username..." :anim-delay="1.1" />
+                      <HoloInput v-model="registerForm.email" label="NEW_ID / 邮箱" placeholder="Enter Email..." :anim-delay="1.3" />
+
+                      <button class="w-full bg-[#4df0ff]/05 border border-[#4df0ff] text-[#4df0ff] px-6 py-2.5 mt-6 cursor-pointer transition-all duration-300 relative overflow-hidden hover:bg-[#4df0ff]/20 [box-shadow:0_0_15px_var(--theme-color-glow)] submit-button" @click="nextRegisterStep">
+                        <HoloText text="NEXT / 下一步" size="16px" weight="bold" />
                       </button>
                     </div>
-                    <HoloInput v-model="registerForm.password" label="PASSWORD / 密码" type="password" placeholder="***" :anim-delay="1.6" />
-                    <HoloInput v-model="registerForm.confirmPassword" label="CONFIRM / 确认密码" type="password" placeholder="***" :anim-delay="1.8" />
-                    <button class="w-full bg-[#4df0ff]/05 border border-[#4df0ff] text-[#4df0ff] px-6 py-2.5 mt-6 cursor-pointer transition-all duration-300 relative overflow-hidden hover:bg-[#4df0ff]/20 [box-shadow:0_0_15px_var(--theme-color-glow)] submit-button" @click="handleRegister">
-                      <HoloText text="REGISTER / 注册" size="16px" weight="bold" />
-                    </button>
+
+                    <div v-else class="flex flex-col relative animate-[fadeIn_0.3s_ease-out]">
+
+                      <button class="bg-transparent border-none text-[#4df0ff]/60 hover:text-[#4df0ff] text-xs mb-3 flex items-center gap-1 cursor-pointer w-max transition-colors p-0" @click="prevRegisterStep">
+                        <span>&lt;</span> BACK / 返回修改邮箱
+                      </button>
+
+                      <div class="flex gap-2.5 items-end [&>.holo-input-wrapper]:flex-1 [&>.holo-input-wrapper]:mb-0">
+                        <HoloInput v-model="registerForm.code" label="AUTH_CODE / 验证码" placeholder="Code..." :anim-delay="0.1" />
+                        <button class="bg-[#4df0ff]/10 border border-[#4df0ff] text-[#4df0ff] px-4 py-2 cursor-pointer h-[38px] transition-all duration-300 font-['Courier_New',Courier,monospace] text-sm hover:bg-[#4df0ff] hover:text-black [box-shadow:0_0_10px_var(--theme-color-glow)] disabled:opacity-40 disabled:cursor-not-allowed send-code-button" @click="handleSendCode('register')" :disabled="countdown > 0">
+                          <span v-if="countdown > 0">{{ countdown }}s</span><span v-else>发送</span>
+                        </button>
+                      </div>
+
+                      <HoloInput v-model="registerForm.password" label="PASSWORD / 密码" type="password" placeholder="***" :anim-delay="0.2" />
+                      <HoloInput v-model="registerForm.confirmPassword" label="CONFIRM / 确认密码" type="password" placeholder="***" :anim-delay="0.3" />
+
+                      <label class="flex items-center gap-2 mt-4 cursor-pointer select-none group">
+                        <span
+                          class="w-4 h-4 border border-[#4df0ff]/50 flex items-center justify-center transition-all duration-200"
+                          :class="registerForm.agreeTerms ? 'bg-[#4df0ff]/20 border-[#4df0ff]' : 'bg-transparent'"
+                          @click="registerForm.agreeTerms = !registerForm.agreeTerms"
+                        >
+                          <svg v-if="registerForm.agreeTerms" class="w-3 h-3 text-[#4df0ff]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <path d="M5 13l4 4L19 7" />
+                          </svg>
+                        </span>
+                        <span class="text-[11px] text-white/50 group-hover:text-white/70 transition-colors">
+                          我已阅读并同意
+                          <a href="/#/agreement" target="_blank" class="text-[#4df0ff]/80 hover:text-[#4df0ff] underline underline-offset-2" @click.stop>用户协议</a>
+                        </span>
+                      </label>
+
+                      <button
+                          class="w-full bg-[#4df0ff]/05 border border-[#4df0ff] text-[#4df0ff] px-6 py-2.5 mt-4 cursor-pointer transition-all duration-300 relative overflow-hidden hover:bg-[#4df0ff]/20 [box-shadow:0_0_15px_var(--theme-color-glow)] submit-button"
+                          :class="{ 'opacity-40 cursor-not-allowed pointer-events-none': !registerForm.agreeTerms }"
+                          @click="handleRegister"
+                      >
+                        <HoloText text="REGISTER / 注册" size="16px" weight="bold" />
+                      </button>
+                    </div>
                   </template>
 
                   <template v-else-if="currentTab === 'forgot'">
@@ -153,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import {ref, reactive, watch} from 'vue';
 import { useUserStore } from '@/store/userStore';
 import { useCountdown } from '@/composables/useCountdown';
 import HoloPanel from '@/components/holo/HoloPanel.vue';
@@ -173,6 +211,7 @@ const emit = defineEmits<{
 
 const userStore = useUserStore();
 const animKey = ref(0);
+const registerStep = ref(1);
 const showCaptcha = ref(false);
 const currentCaptchaContext = ref<'emailLogin' | 'register' | 'forgot' | null>(null);
 const { countdown, start: startCountdown } = useCountdown(60);
@@ -186,7 +225,7 @@ const tabs: { label: string; value: Tab }[] = [
 
 const loginForm = reactive({ email: '', password: '' });
 const emailLoginForm = reactive({ email: '', code: '' });
-const registerForm = reactive({ email: '', code: '', password: '', confirmPassword: '' });
+const registerForm = reactive({username: '', email: '', code: '', password: '', confirmPassword: '', agreeTerms: false });
 const forgotForm = reactive({ email: '', code: '', newPassword: '', confirmPassword: '' });
 
 const handleSendCode = async (context: 'emailLogin' | 'register' | 'forgot') => {
@@ -251,18 +290,21 @@ const handleEmailLogin = async () => {
 };
 
 const handleRegister = async () => {
+  if (!registerForm.agreeTerms) {
+    eventBus.emit('vue:show-message', { text: '请先同意用户协议', type: 'warning' });
+    return;
+  }
   if (registerForm.password !== registerForm.confirmPassword) {
     eventBus.emit('vue:show-message', { text: '两次输入的密码不一致', type: 'warning' });
     return;
   }
   try {
     await userStore.register({
-      username: registerForm.email,
+      username: registerForm.username,
       email: registerForm.email,
       code: registerForm.code,
       password: registerForm.password,
     });
-    await userStore.login(registerForm.email, registerForm.password);
     emit('success');
   } catch (error) {
     eventBus.emit('vue:show-message', { text: '注册失败，请重试', type: 'error' });
@@ -287,6 +329,38 @@ const handleForgotPassword = async () => {
     eventBus.emit('vue:show-message', { text: '修改失败，请重试', type: 'error' });
   }
 };
+
+const nextRegisterStep = () => {
+  if (!registerForm.username) {
+    eventBus.emit('vue:show-message', { text: '请输入用户名', type: 'warning' });
+    return;
+  }
+  if (!registerForm.email) {
+    eventBus.emit('vue:show-message', { text: '请输入邮箱', type: 'warning' });
+    return;
+  }
+
+  // 简单的邮箱格式校验（可选）
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(registerForm.email)) {
+    eventBus.emit('vue:show-message', { text: '邮箱格式不正确', type: 'warning' });
+    return;
+  }
+
+  // 校验通过，进入第 2 步
+  registerStep.value = 2;
+};
+
+// 5. 新增：返回上一步的逻辑
+const prevRegisterStep = () => {
+  registerStep.value = 1;
+};
+
+watch(currentTab, () => {
+  if (currentTab.value === 'register') {
+    registerStep.value = 1;
+  }
+});
 </script>
 
 <style scoped>
@@ -317,6 +391,17 @@ const handleForgotPassword = async () => {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>
